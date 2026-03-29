@@ -16,13 +16,14 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { getCategoryById, getSubcategories, getProductsByCategory } from "@/lib/data"
-import { getActiveQuantityPromotionForSubcategory } from "@/lib/db"
+import { getActiveQuantityPromotionForSubcategory, getBatchProductRatings } from "@/lib/db"
 import { SiteHeader } from "@/components/site-header"
 import { CategoriesNavbar } from "@/components/categories-navbar"
 import { getUser } from "@/lib/auth"
 import { ProductCard } from "@/components/product-card"
 import { CategoryFilterPanel } from "@/components/category-filter-panel"
 import { SubcategoryImage } from "@/components/images"
+import { StickyBottomNav } from "@/components/sticky-bottom-nav"
 
 // Force dynamic rendering to ensure fresh data
 export const dynamic = "force-dynamic"
@@ -52,19 +53,21 @@ export default async function EnglishCategoryPage({
   params,
   searchParams,
 }: {
-  params: { id: string }
-  searchParams: { subcategory?: string; minPrice?: string; maxPrice?: string; sort?: string }
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ subcategory?: string; minPrice?: string; maxPrice?: string; sort?: string }>
 }) {
-  console.log("[EnglishCategoryPage] Rendering. Category ID:", params.id, "Search Params:", searchParams)
+  const { id } = await params
+  const searchParamsResolved = await searchParams
+  console.log("[EnglishCategoryPage] Rendering. Category ID:", id, "Search Params:", searchParamsResolved)
 
   try {
-    if (!params.id) {
+    if (!id) {
       console.error("[EnglishCategoryPage] Category ID is required but not provided.")
       throw new Error("Category ID is required")
     }
 
-    const categoryId = params.id
-    const subcategoryId = searchParams.subcategory
+    const categoryId = id
+    const subcategoryId = searchParamsResolved.subcategory
     console.log(`[EnglishCategoryPage] Current categoryId: ${categoryId}, subcategoryId: ${subcategoryId}`)
 
     const [category, subcategories, allCategories, user, productsByCategory] = await Promise.all([
@@ -106,8 +109,8 @@ export default async function EnglishCategoryPage({
       console.log(`[EnglishCategoryPage] Filtered by subcategory ${subcategoryId}: ${filteredProducts.length} products`)
     }
 
-    const minPriceParam = searchParams.minPrice ? Number.parseFloat(searchParams.minPrice) : undefined
-    const maxPriceParam = searchParams.maxPrice ? Number.parseFloat(searchParams.maxPrice) : undefined
+    const minPriceParam = searchParamsResolved.minPrice ? Number.parseFloat(searchParamsResolved.minPrice) : undefined
+    const maxPriceParam = searchParamsResolved.maxPrice ? Number.parseFloat(searchParamsResolved.maxPrice) : undefined
 
     if (minPriceParam !== undefined) {
       filteredProducts = filteredProducts.filter((product) => {
@@ -125,7 +128,7 @@ export default async function EnglishCategoryPage({
       console.log(`[EnglishCategoryPage] Filtered by maxPrice ${maxPriceParam}: ${filteredProducts.length} products`)
     }
 
-    const sortOption = searchParams.sort || "title-asc"
+    const sortOption = searchParamsResolved.sort || "title-asc"
     // Sorting logic using English titles
     switch (sortOption) {
       case "title-asc":
@@ -197,6 +200,10 @@ export default async function EnglishCategoryPage({
           }
         : "No products to display",
     )
+
+    // Fetch ratings for all products
+    const productIds = productsToDisplay.map((p) => p.objectid)
+    const ratingsMap = await getBatchProductRatings(productIds)
 
     const getCategoryIcon = (categoryTitle: string) => {
       const iconMap: Record<string, React.ReactNode> = {
@@ -285,13 +292,9 @@ export default async function EnglishCategoryPage({
     })
 
     return (
-      <div className="min-h-screen bg-gray-100 text-gray-800">
-        <div className="bg-gray-700">
-          <SiteHeader categories={[]} subcategories={allCategories} currentCategoryId={categoryId} isEnglish={true} />
-        </div>
-        <div className="bg-gray-600">
-          <CategoriesNavbar currentCategoryId={categoryId} isEnglish={true} />
-        </div>
+      <div className="min-h-screen bg-gray-100 text-gray-800 pb-20 md:pb-0">
+        <SiteHeader categories={[]} subcategories={allCategories} currentCategoryId={categoryId} isEnglish={true} />
+        <CategoriesNavbar currentCategoryId={categoryId} isEnglish={true} />
 
         <section className="relative py-6 bg-white border-b border-gray-200">
           <div className="container mx-auto px-4">
@@ -379,9 +382,9 @@ export default async function EnglishCategoryPage({
               categoryId={categoryId}
               subcategories={subcategoriesWithEnglishTitles}
               currentSubcategoryId={subcategoryId}
-              minPrice={searchParams.minPrice}
-              maxPrice={searchParams.maxPrice}
-              sortOption={searchParams.sort || "title-asc"}
+                minPrice={searchParamsResolved.minPrice}
+                maxPrice={searchParamsResolved.maxPrice}
+                sortOption={searchParamsResolved.sort || "title-asc"}
               isEnglish={true}
             />
           </div>
@@ -397,6 +400,8 @@ export default async function EnglishCategoryPage({
 
                   // Only use English description - no fallback
                   const productDescription = product.description_en || ""
+                  
+                  const rating = ratingsMap.get(product.objectid)
 
                   return (
                     <ProductCard
@@ -408,6 +413,10 @@ export default async function EnglishCategoryPage({
                       retailerprice={product.retailerprice ? Number(product.retailerprice) : undefined}
                       wholesalerprice={product.wholesalerprice ? Number(product.wholesalerprice) : undefined}
                       europe_price={product.europe_price ? Number(product.europe_price) : undefined}
+                      price_eur={product.price_eur ? Number(product.price_eur) : undefined}
+                      retailerprice_eur={product.retailerprice_eur ? Number(product.retailerprice_eur) : undefined}
+                      wholesalerprice_eur={product.wholesalerprice_eur ? Number(product.wholesalerprice_eur) : undefined}
+                      europe_price_eur={product.europe_price_eur ? Number(product.europe_price_eur) : undefined}
                       photourl={normalizeImageUrl(product.photourl)}
                       isLoggedIn={isLoggedIn}
                       customerType={user?.customerType}
@@ -418,6 +427,8 @@ export default async function EnglishCategoryPage({
                       promo_free_qty={product.promo_free_qty}
                       promo_description={product.promo_description}
                       isEnglish={true}
+                      averageRating={rating?.average_rating}
+                      reviewCount={rating?.review_count}
                     />
                   )
                 })}
@@ -439,6 +450,9 @@ export default async function EnglishCategoryPage({
             )}
           </div>
         </section>
+
+        {/* Sticky Bottom Navigation - Mobile only */}
+        <StickyBottomNav isEnglish={true} />
       </div>
     )
   } catch (error) {

@@ -430,7 +430,7 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
   return (
     <>
       <h1 className="text-3xl font-bold mb-8 text-gray-800">{t.title}</h1>
-      <div className="grid lg:grid-cols-3 gap-8 items-start">
+      <div className="grid lg:grid-cols-5 gap-8 items-start">
         <div className="lg:col-span-2 space-y-6">
           {cart.items.map((item) => (
             <div
@@ -502,7 +502,7 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
           ))}
         </div>
 
-        <div className="sticky top-28">
+        <div className="lg:col-span-3 sticky top-28">
           <div className="bg-white p-6 rounded-xl shadow-xl border">
             <h2 className="text-2xl font-semibold mb-5 text-gray-800">{t.summary}</h2>
             <div className="space-y-3 mb-5 text-gray-700">

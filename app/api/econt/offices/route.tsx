@@ -188,12 +188,25 @@ export async function POST(request: Request) {
         }
 
         // Parse XML response
-        const offices = parseEcontOfficesResponse(responseText)
+        const allOffices = parseEcontOfficesResponse(responseText)
 
-        if (offices && offices.length > 0) {
-          console.log(`✅ ${endpoint.name} SUCCESS! Found ${offices.length} offices`)
-          setCachedOffices(cityId, offices)
-          return NextResponse.json(offices)
+        if (allOffices && allOffices.length > 0) {
+          console.log(`✅ ${endpoint.name} SUCCESS! Found ${allOffices.length} total offices`)
+          
+          // Filter offices by the requested cityId
+          const offices = allOffices.filter((office) => {
+            // Match by cityId if available
+            if (office.cityId && office.cityId === cityId) return true
+            return false
+          })
+
+          console.log(`✅ After filtering by cityId ${cityId}: ${offices.length} offices`)
+
+          // If cityId filtering returned nothing, the API might not include city_id in responses
+          // In that case return all offices and let client filter
+          const result = offices.length > 0 ? offices : allOffices
+          setCachedOffices(cityId, result)
+          return NextResponse.json(result)
         } else {
           console.log(`⚠️ ${endpoint.name} returned empty offices list`)
           throw new Error("No offices found in response")
@@ -277,6 +290,10 @@ function parseEcontOfficesResponse(xmlText: string): EcontOffice[] {
           const latitude = extractXmlValue(officeXml, "latitude") || extractXmlValue(officeXml, "Latitude")
           const longitude = extractXmlValue(officeXml, "longitude") || extractXmlValue(officeXml, "Longitude")
 
+          // City data - extract city_id and city_name from the XML
+          const officeCityId = extractXmlValue(officeXml, "city_id") || extractXmlValue(officeXml, "CityId") || extractXmlValue(officeXml, "cityId")
+          const officeCityName = extractXmlValue(officeXml, "city_name") || extractXmlValue(officeXml, "CityName") || extractXmlValue(officeXml, "cityName")
+
           if (id && name) {
             const office: EcontOffice = {
               id: String(id),
@@ -289,6 +306,8 @@ function parseEcontOfficesResponse(xmlText: string): EcontOffice[] {
               workBeginSaturday: workBeginSaturday ? String(workBeginSaturday) : undefined,
               workEndSaturday: workEndSaturday ? String(workEndSaturday) : undefined,
               isMachine: Boolean(isMachine),
+              cityId: officeCityId ? String(officeCityId) : undefined,
+              cityName: officeCityName ? String(officeCityName) : undefined,
             }
 
             if (latitude && longitude) {

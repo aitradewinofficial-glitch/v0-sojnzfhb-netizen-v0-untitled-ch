@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RefreshCw, Upload } from "lucide-react"
+import { SeoFields } from "@/components/seo-fields"
 
 interface Category {
   "Document ID": string
@@ -23,7 +24,7 @@ interface AddSubcategoryModalProps {
 }
 
 export function AddSubcategoryModal({ isOpen, onClose, categories, onSuccess }: AddSubcategoryModalProps) {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<Record<string, any>>({
     cateid: "",
     title: "",
     title_en: "",
@@ -31,6 +32,27 @@ export function AddSubcategoryModal({ isOpen, onClose, categories, onSuccess }: 
     description_en: "",
     photourl: "",
     deleted: false,
+    // SEO fields
+    seo_meta_title: "",
+    seo_meta_title_bg: "",
+    seo_meta_description: "",
+    seo_meta_description_bg: "",
+    seo_meta_keywords: "",
+    seo_meta_keywords_bg: "",
+    seo_og_title: "",
+    seo_og_title_bg: "",
+    seo_og_description: "",
+    seo_og_description_bg: "",
+    seo_og_image: "",
+    seo_twitter_card: "summary_large_image",
+    seo_twitter_title: "",
+    seo_twitter_description: "",
+    seo_twitter_image: "",
+    seo_canonical_url: "",
+    seo_robots: "index, follow",
+    seo_schema_type: "CollectionPage",
+    seo_focus_keyword: "",
+    seo_secondary_keywords: "",
   })
   const [loading, setLoading] = useState(false)
   const [uploadingImage, setUploadingImage] = useState(false)
@@ -52,6 +74,10 @@ export function AddSubcategoryModal({ isOpen, onClose, categories, onSuccess }: 
   }
 
   const handleSelectChange = (name: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  const handleSeoFieldChange = (name: string, value: string | null) => {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
@@ -127,16 +153,36 @@ export function AddSubcategoryModal({ isOpen, onClose, categories, onSuccess }: 
       if (data.success) {
         onSuccess()
         onClose()
-        // Reset form
-        setFormData({
-          cateid: "",
-          title: "",
-          title_en: "",
-          description: "",
-          description_en: "",
-          photourl: "",
-          deleted: false,
-        })
+// Reset form
+  setFormData({
+    cateid: "",
+    title: "",
+    title_en: "",
+    description: "",
+    description_en: "",
+    photourl: "",
+    deleted: false,
+    seo_meta_title: "",
+    seo_meta_title_bg: "",
+    seo_meta_description: "",
+    seo_meta_description_bg: "",
+    seo_meta_keywords: "",
+    seo_meta_keywords_bg: "",
+    seo_og_title: "",
+    seo_og_title_bg: "",
+    seo_og_description: "",
+    seo_og_description_bg: "",
+    seo_og_image: "",
+    seo_twitter_card: "summary_large_image",
+    seo_twitter_title: "",
+    seo_twitter_description: "",
+    seo_twitter_image: "",
+    seo_canonical_url: "",
+    seo_robots: "index, follow",
+    seo_schema_type: "CollectionPage",
+    seo_focus_keyword: "",
+    seo_secondary_keywords: "",
+  })
       } else {
         throw new Error(data.error || "Грешка при добавяне на подкатегорията")
       }
@@ -148,7 +194,7 @@ export function AddSubcategoryModal({ isOpen, onClose, categories, onSuccess }: 
     }
   }
 
-  const handleClose = () => {
+const handleClose = () => {
     if (!loading) {
       onClose()
       setError(null)
@@ -160,6 +206,26 @@ export function AddSubcategoryModal({ isOpen, onClose, categories, onSuccess }: 
         description_en: "",
         photourl: "",
         deleted: false,
+        seo_meta_title: "",
+        seo_meta_title_bg: "",
+        seo_meta_description: "",
+        seo_meta_description_bg: "",
+        seo_meta_keywords: "",
+        seo_meta_keywords_bg: "",
+        seo_og_title: "",
+        seo_og_title_bg: "",
+        seo_og_description: "",
+        seo_og_description_bg: "",
+        seo_og_image: "",
+        seo_twitter_card: "summary_large_image",
+        seo_twitter_title: "",
+        seo_twitter_description: "",
+        seo_twitter_image: "",
+        seo_canonical_url: "",
+        seo_robots: "index, follow",
+        seo_schema_type: "CollectionPage",
+        seo_focus_keyword: "",
+        seo_secondary_keywords: "",
       })
     }
   }
@@ -311,6 +377,14 @@ export function AddSubcategoryModal({ isOpen, onClose, categories, onSuccess }: 
               <Label htmlFor="subcategory-status" className="text-sm font-medium text-gray-700">
                 Активна
               </Label>
+            </div>
+
+            {/* SEO Fields */}
+            <div className="bg-gray-50 p-4 rounded-lg mt-4">
+              <SeoFields
+                formData={formData}
+                onChange={handleSeoFieldChange}
+              />
             </div>
           </div>
         </div>

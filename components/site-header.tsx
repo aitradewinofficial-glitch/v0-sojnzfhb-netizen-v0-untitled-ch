@@ -3,7 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { User, LogOut, Phone, Globe, ChevronDown } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { useRouter, usePathname } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
@@ -45,6 +45,8 @@ export function SiteHeader({
   const [isAuthenticated, setIsAuthenticated] = useState(isLoggedIn)
   const [name, setName] = useState(userName)
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false)
+  const [scrolled, setScrolled] = useState(false)
+  const languageRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const pathname = usePathname()
 
@@ -53,33 +55,44 @@ export function SiteHeader({
       try {
         const response = await fetch("/api/auth/check", {
           method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
         })
-
         if (response.ok) {
           const data = await response.json()
           setIsAuthenticated(data.isAuthenticated)
           setName(data.user?.name || "")
         }
       } catch (error) {
-        console.error("Грешка при проверка на автентикация:", error)
+        console.error("Auth check error:", error)
       }
     }
-
     checkAuth()
+  }, [])
+
+  // Detect scroll for visual changes
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 8)
+    window.addEventListener("scroll", handleScroll, { passive: true })
+    return () => window.removeEventListener("scroll", handleScroll)
+  }, [])
+
+  // Close language dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (languageRef.current && !languageRef.current.contains(e.target as Node)) {
+        setShowLanguageDropdown(false)
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => document.removeEventListener("mousedown", handleClickOutside)
   }, [])
 
   const handleLogout = async () => {
     try {
       const response = await fetch("/api/auth/logout", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
       })
-
       if (response.ok) {
         setIsAuthenticated(false)
         setName("")
@@ -88,15 +101,13 @@ export function SiteHeader({
         router.refresh()
       }
     } catch (error) {
-      console.error("Грешка при изход:", error)
+      console.error("Logout error:", error)
     }
   }
 
   const currentLocale = pathname.startsWith("/en") ? "en" : "bg"
-
   let pathWithoutLocale = pathname.startsWith("/en") ? pathname.substring(3) : pathname
   if (pathWithoutLocale === "") pathWithoutLocale = "/"
-
   const switchToEnglishPath = `/en${pathWithoutLocale}`
   const switchToBulgarianPath = pathWithoutLocale
 
@@ -106,97 +117,114 @@ export function SiteHeader({
     setShowLanguageDropdown(false)
   }
 
-  // Fix the isEnglish prop detection
   const isEnglish = isEnglishProp || pathname.startsWith("/en")
 
   return (
     <>
-      <header className="bg-gradient-to-r from-gray-800 via-gray-700 to-gray-800 shadow-lg fixed top-0 left-0 right-0 w-full z-[9999]">
-        <div className="container mx-auto pl-0 pr-4 py-3">
-          <div className="flex items-center justify-between">
+      <header
+        className={`
+          fixed top-0 left-0 right-0 w-full z-[9999]
+          transition-all duration-300 ease-out
+          ${
+            scrolled
+              ? "bg-neutral-900/95 backdrop-blur-xl shadow-[0_1px_0_0_rgba(255,255,255,0.06)]"
+              : "bg-neutral-900 backdrop-blur-xl"
+          }
+        `}
+      >
+        <div className="container mx-auto px-4 sm:px-6">
+          {/* Main row */}
+          <div className="flex items-center justify-between h-14 sm:h-16">
             {/* Logo */}
-            <Link href={currentLocale === "en" ? "/en" : "/"} className="flex items-center flex-shrink-0 mr-2">
-              <div className="relative h-10 w-28 sm:h-12 sm:w-40 transition-transform hover:scale-105">
+            <Link
+              href={currentLocale === "en" ? "/en" : "/"}
+              className="flex items-center flex-shrink-0 group"
+            >
+              <div className="relative h-9 w-24 sm:h-11 sm:w-36 transition-opacity group-hover:opacity-80">
                 <Image
                   src="/images/design-mode/new-madiks.png"
                   alt="Madix Groundbaits"
                   fill
-                  className="object-contain drop-shadow-sm"
+                  className="object-contain"
                   priority
                 />
               </div>
             </Link>
 
-            {/* Search Bar - Desktop */}
-            <div className="hidden md:flex flex-1 max-w-2xl mx-6">
-              <div className="w-full relative">
-                <SearchForm
-                  fullWidth={true}
-                  placeholder={currentLocale === "en" ? "Search products..." : "Търсене на продукти..."}
-                />
-              </div>
+            {/* Search -- Desktop */}
+            <div className="hidden md:flex flex-1 max-w-xl mx-8">
+              <SearchForm
+                fullWidth={true}
+                placeholder={currentLocale === "en" ? "Search products..." : "Търсене на продукти..."}
+              />
             </div>
 
-            {/* EFTA Badge - Desktop */}
-            <div className="hidden lg:flex items-center">
-              <div className="relative h-12 w-12 transition-transform hover:scale-110">
-                <Image
-                  src="/images/design-mode/Eftta-Member-removebg-preview.png"
-                  alt="EFTA Member"
-                  fill
-                  className="object-contain drop-shadow-sm"
-                />
+            {/* Right actions */}
+            <div className="flex items-center gap-1 sm:gap-1.5">
+              {/* EFTA badge -- Desktop */}
+              <div className="hidden lg:flex items-center mr-2">
+                <div className="relative h-9 w-9 opacity-70 hover:opacity-100 transition-opacity">
+                  <Image
+                    src="/images/design-mode/Eftta-Member-removebg-preview.png"
+                    alt="EFTA Member"
+                    fill
+                    className="object-contain"
+                  />
+                </div>
               </div>
-            </div>
 
-            {/* Navigation Links - Desktop */}
-            <nav className="hidden lg:flex items-center space-x-6">
+              {/* Contact -- Desktop */}
               <Link
                 href={currentLocale === "en" ? "/en/contact" : "/contact"}
-                className="text-sm font-medium text-gray-200 hover:text-yellow-400 transition-all duration-200 flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-600/50"
+                className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-neutral-300 hover:text-white rounded-full hover:bg-white/[0.08] transition-colors"
               >
-                <Phone className="h-4 w-4" />
-                <span>{currentLocale === "en" ? "Order now" : "Поръчай сега"}</span>
+                <Phone className="h-3.5 w-3.5" />
+                <span>{currentLocale === "en" ? "Contact" : "Контакт"}</span>
               </Link>
 
+              {/* Language -- Desktop */}
               <Link
                 href={currentLocale === "en" ? "/" : "/en"}
-                className="text-sm font-medium text-gray-200 hover:text-yellow-400 transition-all duration-200 flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-gray-600/50 border border-gray-600"
+                className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-neutral-300 hover:text-white rounded-full hover:bg-white/[0.08] transition-colors"
               >
-                <Globe className="h-4 w-4" />
+                <Globe className="h-3.5 w-3.5" />
                 <span>{currentLocale === "en" ? "БГ" : "EN"}</span>
               </Link>
-            </nav>
 
-            {/* Right Side Actions */}
-            <div className="flex items-center space-x-1 sm:space-x-2 flex-shrink-0">
-              {/* Mobile Language Dropdown */}
-              <div className="relative lg:hidden">
+              {/* Divider -- Desktop */}
+              <div className="hidden lg:block w-px h-5 bg-white/10 mx-1" />
+
+              {/* Language -- Mobile */}
+              <div className="relative lg:hidden" ref={languageRef}>
                 <button
                   onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
-                  className="flex items-center px-2 py-2 text-gray-200 hover:text-yellow-400 transition-all duration-200 rounded-lg hover:bg-gray-600/50 border border-gray-600"
+                  className="flex items-center gap-1 px-2 py-1.5 text-neutral-400 hover:text-white rounded-full hover:bg-white/[0.08] transition-colors"
                 >
-                  <Globe className="h-4 w-4 mr-1" />
-                  <span className="text-sm font-medium">{currentLocale === "en" ? "EN" : "БГ"}</span>
+                  <Globe className="h-4 w-4" />
+                  <span className="text-xs font-medium">{currentLocale === "en" ? "EN" : "БГ"}</span>
                   <ChevronDown
-                    className={`h-3 w-3 ml-1 transition-transform duration-200 ${showLanguageDropdown ? "rotate-180" : ""}`}
+                    className={`h-3 w-3 transition-transform duration-200 ${showLanguageDropdown ? "rotate-180" : ""}`}
                   />
                 </button>
 
                 {showLanguageDropdown && (
-                  <div className="absolute right-0 top-full mt-2 bg-gray-700 border border-gray-600 rounded-lg shadow-xl z-50 min-w-[120px] overflow-hidden">
+                  <div className="absolute right-0 top-full mt-2 w-32 bg-neutral-800 border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in-0 zoom-in-95 duration-150">
                     <button
                       onClick={() => handleLanguageChange("bg")}
-                      className={`w-full px-4 py-3 text-left text-sm hover:bg-gray-600 transition-colors ${
-                        currentLocale !== "en" ? "bg-gray-600 text-yellow-400 font-medium" : "text-gray-200"
+                      className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${
+                        currentLocale !== "en"
+                          ? "bg-white/[0.08] text-white font-medium"
+                          : "text-neutral-300 hover:bg-white/[0.05]"
                       }`}
                     >
                       Български
                     </button>
                     <button
                       onClick={() => handleLanguageChange("en")}
-                      className={`w-full px-4 py-3 text-left text-sm hover:bg-gray-600 transition-colors ${
-                        currentLocale === "en" ? "bg-gray-600 text-yellow-400 font-medium" : "text-gray-200"
+                      className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${
+                        currentLocale === "en"
+                          ? "bg-white/[0.08] text-white font-medium"
+                          : "text-neutral-300 hover:bg-white/[0.05]"
                       }`}
                     >
                       English
@@ -205,50 +233,46 @@ export function SiteHeader({
                 )}
               </div>
 
-              {/* User Actions */}
+              {/* User */}
               {isAuthenticated ? (
                 <>
                   <Link href={currentLocale === "en" ? "/en/account/dashboard" : "/account/dashboard"}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-gray-200 hover:text-yellow-400 hover:bg-gray-600/50 transition-all duration-200 h-8 w-8 sm:h-10 sm:w-10"
-                    >
-                      <User className="h-4 w-4 sm:h-5 sm:w-5" />
-                    </Button>
+                    <button className="flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-full text-neutral-400 hover:text-white hover:bg-white/[0.08] transition-colors">
+                      <User className="h-[18px] w-[18px]" />
+                    </button>
                   </Link>
+
                   <CartIcon />
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="text-gray-200 hover:text-yellow-400 lg:hidden bg-transparent border-gray-600 hover:bg-gray-600/50 transition-all duration-200 h-8 w-8 sm:h-10 sm:w-10"
+
+                  {/* Logout icon -- Mobile */}
+                  <button
                     onClick={handleLogout}
+                    className="flex lg:hidden items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-full text-neutral-400 hover:text-white hover:bg-white/[0.08] transition-colors"
                   >
-                    <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
-                  </Button>
-                  <Button
+                    <LogOut className="h-[18px] w-[18px]" />
+                  </button>
+
+                  {/* Logout button -- Desktop */}
+                  <button
                     onClick={handleLogout}
-                    className="hidden lg:flex bg-gradient-to-r from-yellow-600 to-yellow-500 hover:from-yellow-700 hover:to-yellow-600 text-white font-medium rounded-lg text-sm px-6 py-2 shadow-md hover:shadow-lg transition-all duration-200"
+                    className="hidden lg:flex items-center gap-1.5 px-4 py-1.5 text-[13px] font-medium text-neutral-900 bg-white hover:bg-neutral-200 rounded-full transition-colors"
                   >
                     {currentLocale === "en" ? "Logout" : "Изход"}
-                  </Button>
+                  </button>
                 </>
               ) : (
                 <>
                   <Link href={currentLocale === "en" ? "/en/account" : "/account"}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-gray-200 hover:text-yellow-400 hover:bg-gray-600/50 transition-all duration-200 h-8 w-8 sm:h-10 sm:w-10"
-                    >
-                      <User className="h-4 w-4 sm:h-5 sm:w-5" />
-                    </Button>
+                    <button className="flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-full text-neutral-400 hover:text-white hover:bg-white/[0.08] transition-colors">
+                      <User className="h-[18px] w-[18px]" />
+                    </button>
                   </Link>
+
                   <CartIcon />
                 </>
               )}
 
-              {/* Update the mobile menu call to properly pass the isEnglish prop */}
+              {/* Mobile hamburger */}
               <MobileMenu
                 categories={categories}
                 subcategories={subcategories}
@@ -260,8 +284,9 @@ export function SiteHeader({
           </div>
         </div>
       </header>
-      {/* Spacer to prevent content from being hidden behind fixed headers */}
-      <div className="h-[128px]"></div>
+
+      {/* Spacer - matches header height (56px on mobile, 64px on desktop) */}
+      <div className="h-14 sm:h-16" />
     </>
   )
 }

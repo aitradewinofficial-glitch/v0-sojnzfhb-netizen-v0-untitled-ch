@@ -19,7 +19,7 @@ export default async function PaymentPage() {
   return (
     <div className="flex min-h-screen flex-col">
       <SiteHeader categories={bulgarianCategories} subcategories={allSubcategories} />
-      <CategoriesNavbar categories={bulgarianCategories} />
+      <CategoriesNavbar categories={bulgarianCategories} subcategories={allSubcategories} isEnglish={false} />
       <main className="flex-1 container mx-auto px-4 py-8 mt-16">
         <h1 className="text-4xl font-bold text-center mb-8 text-gray-800">Плащане</h1>
 

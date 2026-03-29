@@ -964,7 +964,7 @@ export default function ProductionAdminPage() {
                         <SelectItem value="none">Без ниво</SelectItem>
                         {salaryLevels.map((level) => (
                           <SelectItem key={level.id} value={level.id.toString()}>
-                            {level.level_name} - {Number(level.salary_per_day).toFixed(2)} лв/ден
+                            {level.level_name} - {(Number(level.salary_per_day) / 1.95583).toFixed(2)} €/ден
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -1019,7 +1019,7 @@ export default function ProductionAdminPage() {
                     <TableCell>
                       <div className="flex space-x-2">
                         <Button variant="outline" size="sm" onClick={() => openEditEmployeeDialog(employee)}>
-                          Редактирай
+                          Ред��ктирай
                         </Button>
                         <Button
                           variant="outline"
@@ -1070,7 +1070,7 @@ export default function ProductionAdminPage() {
                     <SelectItem value="none">Без ниво</SelectItem>
                     {salaryLevels.map((level) => (
                       <SelectItem key={level.id} value={level.id.toString()}>
-                        {level.level_name} - {Number(level.salary_per_day).toFixed(2)} лв/ден
+                        {level.level_name} - {(Number(level.salary_per_day) / 1.95583).toFixed(2)} €/ден
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -1177,7 +1177,7 @@ export default function ProductionAdminPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="edit-production-product-sales-value">Продажна стойност (лв)</Label>
+                <Label htmlFor="edit-production-product-sales-value">Продажна стойност (€)</Label>
                 <Input
                   id="edit-production-product-sales-value"
                   type="number"
@@ -1336,7 +1336,7 @@ export default function ProductionAdminPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="salary-per-day">Заплата на ден (лв)</Label>
+                    <Label htmlFor="salary-per-day">Заплата на ден (€)</Label>
                     <Input
                       id="salary-per-day"
                       type="number"
@@ -1383,7 +1383,7 @@ export default function ProductionAdminPage() {
                 {salaryLevels.map((level) => (
                   <TableRow key={level.id}>
                     <TableCell className="font-medium">{level.level_name}</TableCell>
-                    <TableCell className="font-semibold">{Number(level.salary_per_day).toFixed(2)} лв</TableCell>
+                    <TableCell className="font-semibold">{(Number(level.salary_per_day) / 1.95583).toFixed(2)} €</TableCell>
                     <TableCell>{new Date(level.created_at).toLocaleDateString("bg-BG")}</TableCell>
                     <TableCell>
                       <Button
@@ -1472,7 +1472,7 @@ export default function ProductionAdminPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="production-product-sales-value">Продажна стойност (лв)</Label>
+                    <Label htmlFor="production-product-sales-value">Продажна стойност (€)</Label>
                     <Input
                       id="production-product-sales-value"
                       type="number"
@@ -1543,7 +1543,7 @@ export default function ProductionAdminPage() {
                       </TableCell>
                       <TableCell className="font-semibold">{product.daily_target} бр</TableCell>
                       <TableCell className="font-semibold">
-                        {product.sales_value ? `${Number(product.sales_value).toFixed(2)} лв` : "0.00 лв"}
+                        {product.sales_value ? `${(Number(product.sales_value) / 1.95583).toFixed(2)} €` : "0.00 €"}
                       </TableCell>
                       <TableCell>
                         <Badge variant={product.active ? "default" : "secondary"}>

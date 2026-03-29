@@ -1,4 +1,5 @@
 import type React from "react"
+import type { Metadata } from "next"
 import Link from "next/link"
 import {
   ChevronRight,
@@ -16,7 +17,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { getCategoryById, getSubcategories, getProductsByCategory, getCategories } from "@/lib/data" // Added getCategories
-import { getActiveQuantityPromotionForSubcategory } from "@/lib/db" // For specific DB calls like promotions
+import { getActiveQuantityPromotionForSubcategory, getBatchProductRatings } from "@/lib/db" // For specific DB calls like promotions
 import { SiteHeader } from "@/components/site-header"
 import { CategoriesNavbar } from "@/components/categories-navbar"
 import { SiteFooter } from "@/components/site-footer"
@@ -26,11 +27,62 @@ import { ProductCard } from "@/components/product-card"
 // import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
 import { CategoryFilterPanel } from "@/components/category-filter-panel"
 import { SubcategoryImage } from "@/components/images"
+import { StickyBottomNav } from "@/components/sticky-bottom-nav"
 
 // Force dynamic rendering to ensure fresh data
 export const dynamic = "force-dynamic"
 export const fetchCache = "force-no-store"
 export const revalidate = 0
+
+// Generate dynamic metadata from SEO fields
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}): Promise<Metadata> {
+  const { id } = await params
+  const category = await getCategoryById(id)
+
+  if (!category) {
+    return {
+      title: "Категория не е намерена | MADIX",
+      description: "Търсената категория не съществува.",
+    }
+  }
+
+  // Use SEO fields if available, fallback to title/description
+  const metaTitle = category.seo_meta_title_bg || category.seo_meta_title || category.title
+  const metaDescription = category.seo_meta_description_bg || category.seo_meta_description || category.description || `Разгледайте продуктите в категория ${category.title}`
+  const ogTitle = category.seo_og_title_bg || category.seo_og_title || metaTitle
+  const ogDescription = category.seo_og_description_bg || category.seo_og_description || metaDescription
+  const ogImage = category.seo_og_image || category.photourl
+  const twitterTitle = category.seo_twitter_title || ogTitle
+  const twitterDescription = category.seo_twitter_description || ogDescription
+  const twitterImage = category.seo_twitter_image || ogImage
+  const keywords = category.seo_meta_keywords_bg || category.seo_meta_keywords
+
+  return {
+    title: `${metaTitle} | MADIX Groundbaits`,
+    description: metaDescription,
+    keywords: keywords ? keywords.split(",").map(k => k.trim()) : undefined,
+    robots: category.seo_robots || "index, follow",
+    openGraph: {
+      title: ogTitle,
+      description: ogDescription || undefined,
+      type: "website",
+      images: ogImage ? [{ url: ogImage }] : undefined,
+    },
+    twitter: {
+      card: (category.seo_twitter_card as "summary" | "summary_large_image") || "summary_large_image",
+      title: twitterTitle,
+      description: twitterDescription || undefined,
+      images: twitterImage ? [twitterImage] : undefined,
+    },
+    alternates: category.seo_canonical_url ? {
+      canonical: category.seo_canonical_url,
+    } : undefined,
+  }
+}
 
 // Функция за нормализиране на URL адреси на снимки
 function normalizeImageUrl(url: string | null | undefined): string {
@@ -50,19 +102,21 @@ export default async function CategoryPage({
   params,
   searchParams,
 }: {
-  params: { id: string }
-  searchParams: { subcategory?: string; minPrice?: string; maxPrice?: string; sort?: string }
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ subcategory?: string; minPrice?: string; maxPrice?: string; sort?: string }>
 }) {
-  console.log("[CategoryPage] Rendering. Category ID:", params.id, "Search Params:", searchParams)
+  const { id } = await params
+  const searchParamsResolved = await searchParams
+  console.log("[CategoryPage] Rendering. Category ID:", id, "Search Params:", searchParamsResolved)
 
   try {
-    if (!params.id) {
+    if (!id) {
       console.error("[CategoryPage] Category ID is required but not provided.")
       throw new Error("Category ID is required")
     }
 
-    const categoryId = params.id
-    const subcategoryId = searchParams.subcategory
+    const categoryId = id
+    const subcategoryId = searchParamsResolved.subcategory
     console.log(`[CategoryPage] Current categoryId: ${categoryId}, subcategoryId: ${subcategoryId}`)
 
     const [category, subcategories, allSubcategories, categories, user, productsByCategory] = await Promise.all([
@@ -101,8 +155,8 @@ export default async function CategoryPage({
       console.log(`[CategoryPage] Filtered by subcategory ${subcategoryId}: ${filteredProducts.length} products`)
     }
 
-    const minPriceParam = searchParams.minPrice ? Number.parseFloat(searchParams.minPrice) : undefined
-    const maxPriceParam = searchParams.maxPrice ? Number.parseFloat(searchParams.maxPrice) : undefined
+    const minPriceParam = searchParamsResolved.minPrice ? Number.parseFloat(searchParamsResolved.minPrice) : undefined
+    const maxPriceParam = searchParamsResolved.maxPrice ? Number.parseFloat(searchParamsResolved.maxPrice) : undefined
 
     if (minPriceParam !== undefined) {
       filteredProducts = filteredProducts.filter((product) => {
@@ -120,7 +174,7 @@ export default async function CategoryPage({
       console.log(`[CategoryPage] Filtered by maxPrice ${maxPriceParam}: ${filteredProducts.length} products`)
     }
 
-    const sortOption = searchParams.sort || "title-asc"
+    const sortOption = searchParamsResolved.sort || "title-asc"
     // Sorting logic... (console logs for sorting can be added if needed)
     switch (sortOption) {
       case "title-asc":
@@ -193,6 +247,10 @@ export default async function CategoryPage({
         : "No products to display",
     )
 
+    // Fetch ratings for all products
+    const productIds = productsToDisplay.map((p) => p.objectid)
+    const ratingsMap = await getBatchProductRatings(productIds)
+
     const getCategoryIcon = (categoryTitle: string) => {
       const iconMap: Record<string, React.ReactNode> = {
         Въдици: <Package className="h-8 w-8 text-red-500" />,
@@ -245,31 +303,37 @@ export default async function CategoryPage({
     const isLoggedIn = !!user
 
     return (
-      <div className="min-h-screen bg-gray-100 text-gray-800">
-        <div className="bg-gray-700">
-          <SiteHeader categories={[]} subcategories={allSubcategories} currentCategoryId={categoryId} />
-        </div>
-        <div className="bg-gray-600">
-          <CategoriesNavbar currentCategoryId={categoryId} />
-        </div>
+      <div className="min-h-screen bg-gray-100 text-gray-800 pb-20 md:pb-0">
+        <SiteHeader categories={categories} subcategories={allSubcategories} currentCategoryId={categoryId} />
+        <CategoriesNavbar categories={categories} subcategories={allSubcategories} currentCategoryId={categoryId} isEnglish={false} />
 
-        <section className="relative py-6 bg-white border-b border-gray-200">
+        {/* Apple-style Header Section */}
+        <section className="relative py-8 md:py-12 bg-gradient-to-b from-gray-50 to-white">
           <div className="container mx-auto px-4">
-            <div className="flex items-center space-x-2 text-sm text-gray-600 mb-4">
-              <Link href="/" className="hover:text-red-600">
+            {/* Breadcrumb */}
+            <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6">
+              <Link href="/" className="hover:text-gray-900 transition-colors">
                 Начало
               </Link>
-              <ChevronRight className="h-4 w-4" />
-              <span className="text-red-600">{category?.title || "Категория"}</span>
-            </div>
-            <div className="grid grid-cols-1 gap-8 items-center">
-              <div>
-                <h1 className="text-3xl md:text-4xl font-bold text-gray-800">{category?.title || "Категория"}</h1>
-                {category?.description && <p className="mt-2 text-gray-600 max-w-3xl">{category.description}</p>}
-                <p className="mt-2 text-red-600 font-medium">
-                  Намерени продукти: {productsToDisplay.length} от {productsByCategory.length}
-                </p>
-              </div>
+              <ChevronRight className="h-3.5 w-3.5" />
+              <span className="text-gray-900 font-medium">{category?.title || "Категория"}</span>
+            </nav>
+            
+            {/* Title and Stats */}
+            <div className="space-y-3">
+              <h1 className="text-3xl md:text-5xl font-semibold tracking-tight text-gray-900">
+                {category?.title || "Категория"}
+              </h1>
+              {category?.description && (
+                <p className="text-lg text-gray-500 max-w-2xl leading-relaxed">{category.description}</p>
+              )}
+              <p className="text-sm text-gray-400">
+                {productsToDisplay.length === productsByCategory.length ? (
+                  <span>{productsToDisplay.length} продукта</span>
+                ) : (
+                  <span>{productsToDisplay.length} от {productsByCategory.length} продукта</span>
+                )}
+              </p>
             </div>
           </div>
         </section>
@@ -329,9 +393,9 @@ export default async function CategoryPage({
               categoryId={categoryId}
               subcategories={subcategories}
               currentSubcategoryId={subcategoryId}
-              minPrice={searchParams.minPrice}
-              maxPrice={searchParams.maxPrice}
-              sortOption={searchParams.sort || "title-asc"}
+                minPrice={searchParamsResolved.minPrice}
+                maxPrice={searchParamsResolved.maxPrice}
+                sortOption={searchParamsResolved.sort || "title-asc"}
             />
           </div>
         </section>
@@ -340,27 +404,36 @@ export default async function CategoryPage({
           <div className="container mx-auto px-4">
             {productsToDisplay.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 md:gap-6">
-                {productsToDisplay.map((product) => (
-                  <ProductCard
-                    key={product.objectid}
-                    id={product.objectid}
-                    title={product.title}
-                    description={product.description}
-                    price={Number(product.price)}
-                    retailerprice={product.retailerprice ? Number(product.retailerprice) : undefined}
-                    wholesalerprice={product.wholesalerprice ? Number(product.wholesalerprice) : undefined}
-                    europe_price={product.europe_price ? Number(product.europe_price) : undefined}
-                    photourl={normalizeImageUrl(product.photourl)}
-                    isLoggedIn={isLoggedIn}
-                    customerType={user?.customerType}
-                    discountPercent={user?.discountPercent}
-                    isNew={product.createdat ? isNewProduct(product.createdat) : false}
-                    discount={getRandomDiscount()}
-                    promo_buy_qty={product.promo_buy_qty}
-                    promo_free_qty={product.promo_free_qty}
-                    promo_description={product.promo_description}
-                  />
-                ))}
+                {productsToDisplay.map((product) => {
+                  const rating = ratingsMap.get(product.objectid)
+                  return (
+                    <ProductCard
+                      key={product.objectid}
+                      id={product.objectid}
+                      title={product.title}
+                      description={product.description}
+                      price={Number(product.price)}
+                      retailerprice={product.retailerprice ? Number(product.retailerprice) : undefined}
+                      wholesalerprice={product.wholesalerprice ? Number(product.wholesalerprice) : undefined}
+                      europe_price={product.europe_price ? Number(product.europe_price) : undefined}
+                      price_eur={product.price_eur ? Number(product.price_eur) : undefined}
+                      retailerprice_eur={product.retailerprice_eur ? Number(product.retailerprice_eur) : undefined}
+                      wholesalerprice_eur={product.wholesalerprice_eur ? Number(product.wholesalerprice_eur) : undefined}
+                      europe_price_eur={product.europe_price_eur ? Number(product.europe_price_eur) : undefined}
+                      photourl={normalizeImageUrl(product.photourl)}
+                      isLoggedIn={isLoggedIn}
+                      customerType={user?.customerType}
+                      discountPercent={user?.discountPercent}
+                      isNew={product.createdat ? isNewProduct(product.createdat) : false}
+                      discount={getRandomDiscount()}
+                      promo_buy_qty={product.promo_buy_qty}
+                      promo_free_qty={product.promo_free_qty}
+                      promo_description={product.promo_description}
+                      averageRating={rating?.average_rating}
+                      reviewCount={rating?.review_count}
+                    />
+                  )
+                })}
               </div>
             ) : (
               <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
@@ -381,6 +454,9 @@ export default async function CategoryPage({
         </section>
 
         <SiteFooter categories={categories || []} isEnglish={false} />
+
+        {/* Sticky Bottom Navigation - Mobile only */}
+        <StickyBottomNav isEnglish={false} />
       </div>
     )
   } catch (error) {

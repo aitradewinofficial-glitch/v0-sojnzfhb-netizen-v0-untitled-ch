@@ -28,10 +28,37 @@ export async function POST(request: NextRequest) {
       retailerprice,
       wholesalerprice,
       europe_price,
+      price_eur,
+      retailerprice_eur,
+      wholesalerprice_eur,
+      europe_price_eur,
       cateid, // Expecting string or null/undefined
       subcateid, // Expecting string or null/undefined
       photourl,
       active,
+      // SEO fields
+      seo_meta_title,
+      seo_meta_description,
+      seo_meta_keywords,
+      seo_og_title,
+      seo_og_description,
+      seo_og_image,
+      seo_twitter_title,
+      seo_twitter_description,
+      seo_twitter_image,
+      seo_canonical_url,
+      seo_robots,
+      seo_schema_brand,
+      seo_schema_sku,
+      seo_schema_availability,
+      seo_focus_keyword,
+      seo_secondary_keywords,
+      seo_alt_text,
+      seo_meta_title_bg,
+      seo_meta_description_bg,
+      seo_meta_keywords_bg,
+      seo_og_title_bg,
+      seo_og_description_bg,
     } = data
 
     if (!id) {
@@ -55,6 +82,23 @@ export async function POST(request: NextRequest) {
     const numEuropePrice =
       europe_price !== undefined && europe_price !== "" && europe_price !== null
         ? Number.parseFloat(String(europe_price))
+        : null
+    // EUR prices
+    const numPriceEur =
+      price_eur !== undefined && price_eur !== "" && price_eur !== null
+        ? Number.parseFloat(String(price_eur))
+        : null
+    const numRetailerPriceEur =
+      retailerprice_eur !== undefined && retailerprice_eur !== "" && retailerprice_eur !== null
+        ? Number.parseFloat(String(retailerprice_eur))
+        : null
+    const numWholesalerPriceEur =
+      wholesalerprice_eur !== undefined && wholesalerprice_eur !== "" && wholesalerprice_eur !== null
+        ? Number.parseFloat(String(wholesalerprice_eur))
+        : null
+    const numEuropePriceEur =
+      europe_price_eur !== undefined && europe_price_eur !== "" && europe_price_eur !== null
+        ? Number.parseFloat(String(europe_price_eur))
         : null
 
     // Correct handling for cateid and subcateid as strings or null
@@ -91,11 +135,36 @@ export async function POST(request: NextRequest) {
         retailerprice = ${numRetailerPrice},
         wholesalerprice = ${numWholesalerPrice},
         europe_price = ${numEuropePrice},
-        cateid = ${finalCateId}, -- Use processed string or null
-        subcateid = ${finalSubCateId}, -- Use processed string or null
+        price_eur = ${numPriceEur},
+        retailerprice_eur = ${numRetailerPriceEur},
+        wholesalerprice_eur = ${numWholesalerPriceEur},
+        europe_price_eur = ${numEuropePriceEur},
+        cateid = ${finalCateId},
+        subcateid = ${finalSubCateId},
         photourl = ${photourl || null},
-        deleted = ${dbDeletedValue}
-        -- updated_at = NOW() -- Премахнато, ако е нужно, трябва да се активира
+        deleted = ${dbDeletedValue},
+        seo_meta_title = ${seo_meta_title || null},
+        seo_meta_description = ${seo_meta_description || null},
+        seo_meta_keywords = ${seo_meta_keywords || null},
+        seo_og_title = ${seo_og_title || null},
+        seo_og_description = ${seo_og_description || null},
+        seo_og_image = ${seo_og_image || null},
+        seo_twitter_title = ${seo_twitter_title || null},
+        seo_twitter_description = ${seo_twitter_description || null},
+        seo_twitter_image = ${seo_twitter_image || null},
+        seo_canonical_url = ${seo_canonical_url || null},
+        seo_robots = ${seo_robots || 'index, follow'},
+        seo_schema_brand = ${seo_schema_brand || null},
+        seo_schema_sku = ${seo_schema_sku || null},
+        seo_schema_availability = ${seo_schema_availability || 'InStock'},
+        seo_focus_keyword = ${seo_focus_keyword || null},
+        seo_secondary_keywords = ${seo_secondary_keywords || null},
+        seo_alt_text = ${seo_alt_text || null},
+        seo_meta_title_bg = ${seo_meta_title_bg || null},
+        seo_meta_description_bg = ${seo_meta_description_bg || null},
+        seo_meta_keywords_bg = ${seo_meta_keywords_bg || null},
+        seo_og_title_bg = ${seo_og_title_bg || null},
+        seo_og_description_bg = ${seo_og_description_bg || null}
       WHERE (objectid = ${actualProductId} OR "Document ID" = ${actualProductId})
       RETURNING objectid, title, deleted, cateid, subcateid
     `

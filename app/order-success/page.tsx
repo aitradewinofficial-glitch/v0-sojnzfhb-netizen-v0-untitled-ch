@@ -69,7 +69,7 @@ export default function OrderSuccessPage() {
           <p className="text-xs text-gray-500">
             При въпроси се свържете с нас на{" "}
             <a href="tel:+359888123456" className="text-blue-600 hover:underline">
-              +359 888 123 456
+              +359894352204
             </a>
           </p>
         </div>

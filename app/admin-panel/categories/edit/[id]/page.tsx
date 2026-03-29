@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ImageUpload } from "@/components/image-upload"
 import { useRouter } from "next/navigation"
 import { RefreshCw, Save, ArrowLeft, AlertTriangle } from "lucide-react"
+import { SeoFields } from "@/components/seo-fields"
 
 interface ColumnSchema {
   column_name: string
@@ -123,6 +124,10 @@ export default function EditCategoryPage({ params }: { params: { id: string } })
     setSuccess("Снимката беше качена успешно!")
     // Clear success message after 3 seconds
     setTimeout(() => setSuccess(null), 3000)
+  }
+
+  const handleSeoFieldChange = (name: string, value: string | null) => {
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
   const handleImageUploadError = (errorMessage: string) => {
@@ -323,7 +328,7 @@ export default function EditCategoryPage({ params }: { params: { id: string } })
                         {col.column_name === "Document ID"
                           ? "ID"
                           : col.column_name === "title"
-                            ? "Заглавие"
+                            ? "Загла��ие"
                             : col.column_name === "title_en"
                               ? "Заглавие (EN)"
                               : col.column_name === "description"
@@ -430,7 +435,7 @@ export default function EditCategoryPage({ params }: { params: { id: string } })
               </div>
             )}
 
-            {/* Additional Fields Section */}
+            {/* Additional Fields Section - excludes SEO fields which have their own section */}
             {tableSchema.filter(
               (col) =>
                 ![
@@ -446,7 +451,7 @@ export default function EditCategoryPage({ params }: { params: { id: string } })
                   "deleted",
                   "createdat",
                   "updatedat",
-                ].includes(col.column_name),
+                ].includes(col.column_name) && !col.column_name.startsWith("seo_"),
             ).length > 0 && (
               <div>
                 <h3 className="text-lg font-medium mb-4 border-b border-gray-200 pb-2">Допълнителни полета</h3>
@@ -467,7 +472,7 @@ export default function EditCategoryPage({ params }: { params: { id: string } })
                           "deleted",
                           "createdat",
                           "updatedat",
-                        ].includes(col.column_name),
+                        ].includes(col.column_name) && !col.column_name.startsWith("seo_"),
                     )
                     .map((col) => (
                       <div key={`additional-${col.column_name}`} className="space-y-1">
@@ -492,6 +497,14 @@ export default function EditCategoryPage({ params }: { params: { id: string } })
                 </div>
               </div>
             )}
+
+            {/* SEO Fields Section */}
+            <div className="bg-gray-50 p-4 rounded-lg">
+              <SeoFields
+                formData={formData}
+                onChange={handleSeoFieldChange}
+              />
+            </div>
 
             {/* System Fields (Read-only) */}
             {tableSchema.filter((col) => ["createdat", "updatedat"].includes(col.column_name)).length > 0 && (

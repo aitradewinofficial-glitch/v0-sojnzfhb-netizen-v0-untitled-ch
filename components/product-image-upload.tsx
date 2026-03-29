@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Upload, X, Check, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -21,6 +21,13 @@ export function ProductImageUpload({ productId, currentImageUrl, onImageUploaded
   const [isUploading, setIsUploading] = useState(false)
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(currentImageUrl || null)
   const { toast } = useToast()
+
+  // Sync with prop changes (e.g., when a different product is selected)
+  useEffect(() => {
+    setUploadedImageUrl(currentImageUrl || null)
+    setSelectedFile(null)
+    setPreviewUrl(null)
+  }, [currentImageUrl, productId])
 
   // Функция за избор на файл
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

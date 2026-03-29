@@ -14,7 +14,7 @@ export default async function ContactPage() {
     <>
       {/* Навигация */}
       <SiteHeader categories={categories} subcategories={subcategories} isLoggedIn={false} />
-      <CategoriesNavbar categories={categories} currentCategoryId={undefined} isEnglish={false} />
+      <CategoriesNavbar categories={categories} subcategories={subcategories} currentCategoryId={undefined} isEnglish={false} />
 
       {/* Съдържание започва директно под навбара */}
       <div className="min-h-screen bg-gray-50 text-gray-800 pb-12">

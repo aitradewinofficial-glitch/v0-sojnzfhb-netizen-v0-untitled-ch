@@ -48,6 +48,27 @@ export interface Category {
   description?: string
   description_en?: string
   photourl?: string
+  // SEO fields
+  seo_meta_title?: string
+  seo_meta_title_bg?: string
+  seo_meta_description?: string
+  seo_meta_description_bg?: string
+  seo_meta_keywords?: string
+  seo_meta_keywords_bg?: string
+  seo_og_title?: string
+  seo_og_title_bg?: string
+  seo_og_description?: string
+  seo_og_description_bg?: string
+  seo_og_image?: string
+  seo_twitter_card?: string
+  seo_twitter_title?: string
+  seo_twitter_description?: string
+  seo_twitter_image?: string
+  seo_canonical_url?: string
+  seo_robots?: string
+  seo_schema_type?: string
+  seo_focus_keyword?: string
+  seo_secondary_keywords?: string
 }
 
 export interface Subcategory {
@@ -58,6 +79,27 @@ export interface Subcategory {
   description_en?: string
   photourl?: string
   cateid: string
+  // SEO fields
+  seo_meta_title?: string
+  seo_meta_title_bg?: string
+  seo_meta_description?: string
+  seo_meta_description_bg?: string
+  seo_meta_keywords?: string
+  seo_meta_keywords_bg?: string
+  seo_og_title?: string
+  seo_og_title_bg?: string
+  seo_og_description?: string
+  seo_og_description_bg?: string
+  seo_og_image?: string
+  seo_twitter_card?: string
+  seo_twitter_title?: string
+  seo_twitter_description?: string
+  seo_twitter_image?: string
+  seo_canonical_url?: string
+  seo_robots?: string
+  seo_schema_type?: string
+  seo_focus_keyword?: string
+  seo_secondary_keywords?: string
 }
 
 export interface CategoryWithSubcategories extends Category {
@@ -149,7 +191,27 @@ export async function getCategoryById(id: string): Promise<Category | null> {
         title_en,
         description,
         description_en,
-        photourl
+        photourl,
+        seo_meta_title,
+        seo_meta_title_bg,
+        seo_meta_description,
+        seo_meta_description_bg,
+        seo_meta_keywords,
+        seo_meta_keywords_bg,
+        seo_og_title,
+        seo_og_title_bg,
+        seo_og_description,
+        seo_og_description_bg,
+        seo_og_image,
+        seo_twitter_card,
+        seo_twitter_title,
+        seo_twitter_description,
+        seo_twitter_image,
+        seo_canonical_url,
+        seo_robots,
+        seo_schema_type,
+        seo_focus_keyword,
+        seo_secondary_keywords
       FROM categories 
       WHERE "Document ID" = ${id}
     `
@@ -174,7 +236,27 @@ export async function getSubcategoryById(id: string): Promise<Subcategory | null
         description,
         description_en,
         photourl,
-        cateid
+        cateid,
+        seo_meta_title,
+        seo_meta_title_bg,
+        seo_meta_description,
+        seo_meta_description_bg,
+        seo_meta_keywords,
+        seo_meta_keywords_bg,
+        seo_og_title,
+        seo_og_title_bg,
+        seo_og_description,
+        seo_og_description_bg,
+        seo_og_image,
+        seo_twitter_card,
+        seo_twitter_title,
+        seo_twitter_description,
+        seo_twitter_image,
+        seo_canonical_url,
+        seo_robots,
+        seo_schema_type,
+        seo_focus_keyword,
+        seo_secondary_keywords
       FROM subcategories 
       WHERE "Document ID" = ${id}
     `
@@ -236,9 +318,16 @@ export async function getSubcategories(categoryId?: string): Promise<Subcategory
             description_en,
             photourl,
             cateid,
-            deleted
+            deleted,
+            seo_meta_title,
+            seo_meta_title_bg,
+            seo_meta_description,
+            seo_meta_description_bg,
+            seo_og_title,
+            seo_og_title_bg,
+            seo_og_image
           FROM subcategories 
-          WHERE cateid = ${categoryId} AND deleted = false -- Added deleted = false
+          WHERE cateid = ${categoryId} AND deleted = false
           ORDER BY title
         `
       : await sql`
@@ -250,9 +339,16 @@ export async function getSubcategories(categoryId?: string): Promise<Subcategory
             description_en,
             photourl,
             cateid,
-            deleted
+            deleted,
+            seo_meta_title,
+            seo_meta_title_bg,
+            seo_meta_description,
+            seo_meta_description_bg,
+            seo_og_title,
+            seo_og_title_bg,
+            seo_og_image
           FROM subcategories 
-          WHERE deleted = false -- Added deleted = false
+          WHERE deleted = false
           ORDER BY title
         `
 

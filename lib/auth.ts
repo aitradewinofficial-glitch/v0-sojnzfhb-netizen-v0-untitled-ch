@@ -20,7 +20,7 @@ export type User = {
 
 export async function getUser(): Promise<User | null> {
   try {
-    const cookieStore = cookies()
+    const cookieStore = await cookies()
     const token = cookieStore.get("auth_token")
 
     if (!token || !token.value) {

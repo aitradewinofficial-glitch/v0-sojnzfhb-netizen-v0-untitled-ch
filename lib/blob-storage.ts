@@ -1,7 +1,6 @@
 import { put, del, list } from "@vercel/blob"
 import { nanoid } from "nanoid"
-// Assuming you might have a db import here if updateProductImageUrl interacts with a DB
-// import { sql } from "@/lib/db"; // Example, adjust if your db setup is different
+import { neon } from "@neondatabase/serverless"
 
 // Функция за качване на изображение в Blob Store
 export async function uploadProductImage(file: File, productId: string): Promise<string> {
@@ -50,18 +49,23 @@ export async function getProductImages(productId: string): Promise<string[]> {
 // Този пример предполага, че имате @/lib/db с експортиран sql клиент.
 export async function updateProductImageUrl(productId: string, imageUrl: string): Promise<boolean> {
   try {
-    // const { sql } = await import("@/lib/db") // Adjust this import based on your actual DB setup
-    // await sql.query(
-    //   `
-    //   UPDATE new_products
-    //   SET photourl = $1
-    //   WHERE objectid = $2
-    //   `,
-    //   [imageUrl, productId],
-    // );
-    console.log(`Mock DB Update: Product ${productId} with new image URL: ${imageUrl}`) // Current mock
-    // Замени горния console.log с реалната логика за обновяване на базата данни.
-    return true
+    if (!process.env.DATABASE_URL) {
+      console.error("DATABASE_URL environment variable is not set!")
+      return false
+    }
+    const sql = neon(process.env.DATABASE_URL)
+    const result = await sql`
+      UPDATE new_products
+      SET photourl = ${imageUrl}
+      WHERE objectid = ${productId} OR "Document ID" = ${productId}
+      RETURNING objectid
+    `
+    if (result && result.length > 0) {
+      console.log(`DB Update: Product ${productId} image URL updated to: ${imageUrl}`)
+      return true
+    }
+    console.warn(`DB Update: No rows updated for product ${productId}`)
+    return false
   } catch (error) {
     console.error(`Error updating product ${productId} image URL:`, error)
     return false

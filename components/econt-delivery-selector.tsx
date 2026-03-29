@@ -152,6 +152,7 @@ export default function EcontDeliverySelector({
   const [showOfficeDetails, setShowOfficeDetails] = useState(false)
   const [distanceToSelectedOffice, setDistanceToSelectedOffice] = useState<number | null>(null)
   const [showMap, setShowMap] = useState(true)
+  const [cityCenterCoords, setCityCenterCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [showSearchForm, setShowSearchForm] = useState(true)
   const [showSyncButton, setShowSyncButton] = useState(false)
   const [isSyncing, setIsSyncing] = useState(false)
@@ -199,6 +200,27 @@ export default function EcontDeliverySelector({
   const userLocationMarker = useRef<any>(null)
   const infoWindow = useRef<any>(null)
   const officesRef = useRef<EcontOffice[]>([])
+  const suggestionsRef = useRef<HTMLDivElement>(null)
+
+  // Close suggestions dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target as Node)
+      ) {
+        setShowAddressSuggestions(false)
+      }
+    }
+
+    if (showAddressSuggestions) {
+      document.addEventListener("mousedown", handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [showAddressSuggestions])
 
   // Translations
   const t = {
@@ -229,13 +251,13 @@ export default function EcontDeliverySelector({
       : "Търсете адрес, за да намерите близки офиси.",
     useSearchToFindNearbyOffices: isEnglish
       ? "Use the search form to find offices near a specific address."
-      : "Използвайте формата за търсене, за да намерите офиси близо до конкретен адрес.",
+      : "Използвайте формата за търсене, за да намерите офиси близо до конкретен адрес. ",
   }
 
   useEffect(() => {
     if (!window.google) {
       const script = document.createElement("script")
-      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyCB0t6GvDrduZxkKzKYyeLQL0_5BPg73o4&libraries=maps`
+      script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyDjuMW-6OeII4jEw0UWh5-W4E8NfKMFwng&libraries=maps`
       script.async = true
       script.defer = true
       script.onload = () => {
@@ -300,6 +322,38 @@ export default function EcontDeliverySelector({
       })
       console.log("[v0] After filtering invalid data:", filteredOffices.length)
 
+      // Filter offices by the selected city - this is critical because the Econt API
+      // may return ALL offices globally instead of just the requested city's offices
+      if (selectedCity) {
+        const cityNameLower = selectedCity.name.toLowerCase()
+        const cityNameEnLower = (selectedCity.nameEn || "").toLowerCase()
+        
+        const cityFilteredOffices = filteredOffices.filter((office) => {
+          // Match by cityId if available
+          if (office.cityId && office.cityId === cityId) return true
+          // Match by city name in the office name or address
+          const officeName = office.name.toLowerCase()
+          const officeAddress = office.address.toLowerCase()
+          const officeCityName = (office.cityName || "").toLowerCase()
+          
+          if (officeCityName && (officeCityName === cityNameLower || officeCityName === cityNameEnLower)) return true
+          if (officeName.includes(cityNameLower) || officeAddress.includes(cityNameLower)) return true
+          if (cityNameEnLower && (officeName.includes(cityNameEnLower) || officeAddress.includes(cityNameEnLower))) return true
+          return false
+        })
+        
+        console.log("[v0] After city filtering:", cityFilteredOffices.length, "for city:", selectedCity.name)
+        
+        // Only apply city filter if it found results (avoid filtering out everything)
+        if (cityFilteredOffices.length > 0) {
+          filteredOffices = cityFilteredOffices
+        } else {
+          console.log("[v0] City filter found 0 offices, keeping all and using geographic bounds")
+          // If name matching fails, try geographic proximity - offices within ~30km of city center
+          // We'll use geocoding result from the map to filter, but as fallback just keep all
+        }
+      }
+
       // Apply filtering based on the 'isMachine' field
       if (typeFilter === "OFFICE") {
         filteredOffices = filteredOffices.filter((office) => office.isMachine === false)
@@ -334,12 +388,12 @@ export default function EcontDeliverySelector({
   }
 
   const fetchOfficeSuggestions = (query: string) => {
-    console.log("[v0] fetchOfficeSuggestions called with query:", query)
-    console.log("[v0] selectedCity:", selectedCity)
-    console.log("[v0] filteredOffices count:", filteredOffices.length)
+    // Don't show suggestions if we're in the middle of selecting one
+    if (isSelectingSuggestion || isAutoFilling) {
+      return
+    }
 
     if (!selectedCity) {
-      console.log("[v0] No selected city, clearing suggestions")
       setAddressSuggestions([])
       setOfficeSuggestions([])
       setShowAddressSuggestions(false)
@@ -351,24 +405,24 @@ export default function EcontDeliverySelector({
         office.cityId === selectedCity.id || office.address.toLowerCase().includes(selectedCity.name.toLowerCase()),
     )
 
-    console.log("[v0] cityOffices count:", cityOffices.length)
-    console.log(
-      "[v0] cityOffices:",
-      cityOffices.map((o) => o.address),
-    )
+    // Filter by the user's query text, but fall back to all city offices if no matches
+    const queryLower = query.toLowerCase().trim()
+    let matchingOffices = cityOffices
+    if (queryLower) {
+      const filtered = cityOffices.filter((office) => office.address.toLowerCase().includes(queryLower))
+      // Only use filtered results if there are matches, otherwise show all
+      if (filtered.length > 0) {
+        matchingOffices = filtered
+      }
+    }
 
-    const suggestions = cityOffices.map((office) => {
+    const suggestions = matchingOffices.map((office) => {
       return {
         id: office.id,
         displayText: office.address,
         office: office,
       }
     })
-
-    console.log(
-      "[v0] Final suggestions:",
-      suggestions.map((s) => s.displayText),
-    )
 
     setOfficeSuggestions(suggestions)
     setAddressSuggestions(suggestions.map((s) => s.displayText))
@@ -377,8 +431,6 @@ export default function EcontDeliverySelector({
 
   useEffect(() => {
     if (isSelectingSuggestion || isAutoFilling) {
-      setIsSelectingSuggestion(false)
-      setIsAutoFilling(false)
       return
     }
 
@@ -519,9 +571,10 @@ export default function EcontDeliverySelector({
     }
 
     // Priority 2: Selected city (use geocoding to get coordinates)
+    // Always center on the selected city - the markers effect will handle fitBounds after offices load
     if (selectedCity) {
       const cityName = getCityTitle(selectedCity, isEnglish)
-      console.log("[v0] Geocoding city:", cityName, "City ID:", selectedCity.id)
+      console.log("[v0] City centering effect: city:", cityName, "offices count:", offices.length)
 
       const geocoder = new window.google.maps.Geocoder()
       geocoder.geocode(
@@ -533,34 +586,38 @@ export default function EcontDeliverySelector({
           if (status === "OK" && results && results[0]) {
             const cityPosition = results[0].geometry.location
             console.log("[v0] Geocoding successful for:", cityName, cityPosition.toJSON())
+            
+            // Store city center coordinates for filtering offices by distance
+            setCityCenterCoords({ lat: cityPosition.lat(), lng: cityPosition.lng() })
 
-            // Use setTimeout to ensure this runs after any other map updates
-            setTimeout(() => {
-              if (googleMap.current) {
-                googleMap.current.panTo(cityPosition)
-                googleMap.current.setZoom(13)
-                console.log("[v0] Map centered on city:", cityName)
+            // Always center the map on the selected city immediately
+            // This ensures the map moves to the correct city when selected
+            if (googleMap.current) {
+              googleMap.current.panTo(cityPosition)
+              googleMap.current.setZoom(13)
+              console.log("[v0] Map centered on city via geocoding:", cityName)
+            }
 
-                // Add city marker
-                cityMarker.current = new window.google.maps.Marker({
-                  position: cityPosition,
-                  map: googleMap.current,
-                  title: cityName,
-                  icon: {
-                    url:
-                      "data:image/svg+xml;charset=UTF-8," +
-                      encodeURIComponent(`
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <circle cx="12" cy="12" r="8" fill="#3B82F6" stroke="#FFFFFF" strokeWidth="2"/>
-                          <circle cx="12" cy="12" r="3" fill="#FFFFFF"/>
-                        </svg>
-                      `),
-                    scaledSize: new window.google.maps.Size(24, 24),
-                    anchor: new window.google.maps.Point(12, 12),
-                  },
-                })
-              }
-            }, 100)
+            // Always add the city marker regardless
+            if (googleMap.current) {
+              cityMarker.current = new window.google.maps.Marker({
+                position: cityPosition,
+                map: googleMap.current,
+                title: cityName,
+                icon: {
+                  url:
+                    "data:image/svg+xml;charset=UTF-8," +
+                    encodeURIComponent(`
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="12" cy="12" r="8" fill="#3B82F6" stroke="#FFFFFF" strokeWidth="2"/>
+                        <circle cx="12" cy="12" r="3" fill="#FFFFFF"/>
+                      </svg>
+                    `),
+                  scaledSize: new window.google.maps.Size(24, 24),
+                  anchor: new window.google.maps.Point(12, 12),
+                },
+              })
+            }
           } else {
             console.error("[v0] Geocoding failed for city:", cityName, status)
             // Fallback to Bulgaria center if geocoding fails
@@ -582,64 +639,19 @@ export default function EcontDeliverySelector({
 
   useEffect(() => {
     if (googleMap.current && showMap && mapInitialized && window.google) {
-      console.log("Updating Google Maps markers with", offices.length, "offices")
+      console.log("[v0] Markers effect: offices count:", offices.length, "selectedOffice:", selectedOffice?.name || "none")
 
-      // Clear existing markers
+      // Clear existing office markers only (NOT city marker - that's managed by the other effect)
       officeMarkers.current.forEach((marker) => {
         if (marker.setMap) marker.setMap(null)
       })
       officeMarkers.current = []
 
-      if (cityMarker.current) {
-        cityMarker.current.setMap(null)
-        cityMarker.current = null
-      }
-
       if (infoWindow.current) {
         infoWindow.current.close()
       }
 
-      if (selectedOffice && selectedOffice.location && showOfficeDetails) {
-        const position = {
-          lat: selectedOffice.location.latitude,
-          lng: selectedOffice.location.longitude,
-        }
-        googleMap.current.panTo(position)
-        googleMap.current.setZoom(16)
-        console.log("[v0] Centering on selected office:", selectedOffice.name)
-      } else if (selectedCity && selectedCity.location) {
-        const cityPosition = {
-          lat: selectedCity.location.latitude,
-          lng: selectedCity.location.longitude,
-        }
-        googleMap.current.panTo(cityPosition)
-        googleMap.current.setZoom(13)
-        console.log("[v0] Centering on selected city:", getCityTitle(selectedCity, isEnglish))
-
-        // Add city marker
-        cityMarker.current = new window.google.maps.Marker({
-          position: cityPosition,
-          map: googleMap.current,
-          title: getCityTitle(selectedCity, isEnglish),
-          icon: {
-            url:
-              "data:image/svg+xml;charset=UTF-8," +
-              encodeURIComponent(`
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <circle cx="12" cy="12" r="8" fill="#3B82F6" stroke="#FFFFFF" strokeWidth="2"/>
-                  <circle cx="12" cy="12" r="3" fill="#FFFFFF"/>
-                </svg>
-              `),
-            scaledSize: new window.google.maps.Size(24, 24),
-            anchor: new window.google.maps.Point(12, 12),
-          },
-        })
-      } else if (!selectedCity && offices.length === 0) {
-        googleMap.current.panTo({ lat: 42.7, lng: 25.0 })
-        googleMap.current.setZoom(7)
-        console.log("[v0] No city selected, centering on Bulgaria")
-      }
-
+      // Place office markers
       if (offices.length > 0) {
         offices.forEach((office, index) => {
           if (office.location && office.location.latitude && office.location.longitude) {
@@ -681,9 +693,59 @@ export default function EcontDeliverySelector({
             console.log(`Added office marker ${index + 1}:`, office.name, office.id)
           }
         })
+
+        // Fit map bounds to show all office markers if no specific office is selected
+        // But only include offices within 30km of the city center to avoid zooming out too far
+        if (!selectedOffice && officeMarkers.current.length > 0) {
+          const bounds = new window.google.maps.LatLngBounds()
+          let includedOfficesCount = 0
+          
+          offices.forEach((office) => {
+            if (office.location && office.location.latitude && office.location.longitude) {
+              // If we have city center coords, only include offices within 30km
+              if (cityCenterCoords) {
+                const distance = haversineDistance(
+                  cityCenterCoords.lat, 
+                  cityCenterCoords.lng, 
+                  office.location.latitude, 
+                  office.location.longitude
+                )
+                if (distance <= 30) {
+                  bounds.extend({ lat: office.location.latitude, lng: office.location.longitude })
+                  includedOfficesCount++
+                }
+              } else {
+                bounds.extend({ lat: office.location.latitude, lng: office.location.longitude })
+                includedOfficesCount++
+              }
+            }
+          })
+          
+          // Only fitBounds if we have offices to show, otherwise the city centering handles it
+          if (includedOfficesCount > 0) {
+            googleMap.current.fitBounds(bounds)
+            // Limit zoom levels after fitting bounds - don't zoom too far out or too close
+            const listener = window.google.maps.event.addListener(googleMap.current, "idle", () => {
+              if (googleMap.current) {
+                const currentZoom = googleMap.current.getZoom()
+                // Don't zoom out too far (prevents showing all offices globally)
+                if (currentZoom < 10 && selectedCity) {
+                  googleMap.current.setZoom(12)
+                }
+                if (currentZoom > 16) {
+                  googleMap.current.setZoom(16)
+                }
+              }
+              window.google.maps.event.removeListener(listener)
+            })
+            console.log("[v0] Fitted map bounds to", includedOfficesCount, "nearby office markers (within 30km)")
+          } else {
+            console.log("[v0] No nearby offices found, keeping city-centered view")
+          }
+        }
       }
     }
-  }, [offices, selectedOffice, showOfficeDetails, showMap, mapInitialized, selectedCity, isEnglish])
+  }, [offices, selectedOffice, showOfficeDetails, showMap, mapInitialized, cityCenterCoords])
 
   // Fetch cities on mount
   useEffect(() => {
@@ -1017,7 +1079,11 @@ export default function EcontDeliverySelector({
                     <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent className="w-[--radix-popover-trigger-width] p-0 border-0 shadow-xl rounded-xl bg-white/95 backdrop-blur-md">
+                <PopoverContent 
+  className="w-[--radix-popover-trigger-width] p-0 border-0 shadow-xl rounded-xl bg-white"
+  side="bottom"
+  avoidCollisions={false}
+>
                   <Command className="rounded-xl">
                     <CommandInput
                       placeholder="Search city..."
@@ -1053,11 +1119,16 @@ export default function EcontDeliverySelector({
                                 key={city.id}
                                 value={city.name}
                                 onSelect={() => {
+                                  // Clear existing offices, markers, and city center when selecting a new city
+                                  setOffices([])
+                                  setFilteredOffices([])
+                                  onOfficeSelect(null)
+                                  setCityCenterCoords(null) // Clear so fitBounds won't run until new coords are set
                                   setSelectedCity(city)
                                   setOpenCitySelect(false)
                                   setCitySearchInput("")
                                 }}
-                                className="px-4 py-3 hover:bg-gray-50/80 cursor-pointer transition-colors duration-150 rounded-lg mx-2 my-1"
+                                className="px-4 py-3 hover:bg-gray-50 cursor-pointer rounded-lg mx-2 my-1"
                               >
                                 <Check
                                   className={cn(
@@ -1077,7 +1148,7 @@ export default function EcontDeliverySelector({
                 </PopoverContent>
               </Popover>
             </div>
-            <div className="relative">
+            <div className="relative" ref={suggestionsRef}>
               <Input
                 placeholder="Търсене на офис по име или адрес"
                 className="bg-white/80 backdrop-blur-sm border-0 rounded-xl shadow-sm hover:shadow-md focus:shadow-md transition-all duration-200 h-12 px-4 text-gray-700 font-medium placeholder:text-gray-500"
@@ -1085,6 +1156,8 @@ export default function EcontDeliverySelector({
                 onChange={(e) => {
                   setOfficeStreetAddress(e.target.value)
                   setHasUserEditedAddress(true)
+                  setIsSelectingSuggestion(false)
+                  setIsAutoFilling(false)
                 }}
                 onFocus={() => {
                   if (addressSuggestions.length > 0) {
@@ -1092,7 +1165,7 @@ export default function EcontDeliverySelector({
                   }
                 }}
                 onBlur={() => {
-                  setTimeout(() => setShowAddressSuggestions(false), 200)
+                  // Click-outside is handled by the suggestionsRef useEffect
                 }}
               />
               {showAddressSuggestions && (
@@ -1102,17 +1175,18 @@ export default function EcontDeliverySelector({
                       key={index}
                       className="p-4 hover:bg-gray-50/80 cursor-pointer text-sm border-b border-gray-100/50 last:border-b-0 transition-colors duration-150 first:rounded-t-xl last:rounded-b-xl text-gray-700"
                       onClick={() => {
-                        console.log("[v0] Suggestion clicked:", suggestion)
-                        setIsSelectingSuggestion(true)
-
+                        // Get the selected office data FIRST before clearing anything
                         const selectedOfficeSuggestion = officeSuggestions[index]
-                        console.log("[v0] Selected office suggestion:", selectedOfficeSuggestion)
+                        
+                        // Hide suggestions immediately and clear the arrays to prevent any re-showing
+                        setShowAddressSuggestions(false)
+                        setAddressSuggestions([])
+                        setOfficeSuggestions([])
+                        setIsSelectingSuggestion(true)
 
                         if (selectedOfficeSuggestion) {
                           const office = selectedOfficeSuggestion.office
-                          console.log("[v0] Setting address to:", selectedOfficeSuggestion.displayText)
                           setOfficeStreetAddress(selectedOfficeSuggestion.displayText)
-                          console.log("[v0] Address set, calling onOfficeSelect")
                           onOfficeSelect(office)
                           setShowOfficeDetails(true)
 
@@ -1127,9 +1201,6 @@ export default function EcontDeliverySelector({
                             setDistanceToSelectedOffice(distance)
                           }
                         }
-
-                        console.log("[v0] Hiding suggestions")
-                        setShowAddressSuggestions(false)
                       }}
                     >
                       {suggestion}
@@ -1236,7 +1307,7 @@ export default function EcontDeliverySelector({
                     <div className="space-y-2 text-sm">
                       <p className="flex items-center">
                         <User className="h-4 w-4 mr-2 text-gray-500" />
-                        <span className="font-medium text-gray-600 mr-2">{isEnglish ? "Name:" : "Име:"}</span>
+                        <span className="font-medium text-gray-600 mr-2">{isEnglish ? "Name:" : "��ме:"}</span>
                         {customerNameProp || (isEnglish ? "No data" : "Няма данни")}
                       </p>
                       <p className="flex items-center">

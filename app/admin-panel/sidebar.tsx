@@ -16,6 +16,10 @@ import {
   Undo2,
   Factory,
   Bell,
+  Rss,
+  Star,
+  Newspaper,
+  Search,
 } from "lucide-react"
 
 export function Sidebar({ items }: { items: any[] }) {
@@ -37,6 +41,12 @@ export function Sidebar({ items }: { items: any[] }) {
       href: "/admin-panel/products",
       icon: Package,
       active: isActive("/admin-panel/products"),
+    },
+    {
+      title: "Отзиви",
+      href: "/admin-panel/reviews",
+      icon: Star,
+      active: isActive("/admin-panel/reviews"),
     },
     {
       title: "Категории",
@@ -81,7 +91,13 @@ export function Sidebar({ items }: { items: any[] }) {
       active: isActive("/admin-panel/production"),
     },
     {
-      title: "Главна снимка",
+      title: "Новини",
+      href: "/admin-panel/news",
+      icon: Newspaper,
+      active: isActive("/admin-panel/news"),
+    },
+    {
+      title: "Банери (Карусел)",
       href: "/admin-panel/home-image",
       icon: ImageIcon,
       active: isActive("/admin-panel/home-image"),
@@ -91,6 +107,18 @@ export function Sidebar({ items }: { items: any[] }) {
       href: "/admin-panel/banner-settings",
       icon: Bell,
       active: isActive("/admin-panel/banner-settings"),
+    },
+    {
+      title: "Meta Product Feed",
+      href: "/admin-panel/meta-feed",
+      icon: Rss,
+      active: isActive("/admin-panel/meta-feed"),
+    },
+    {
+      title: "SEO Настройки",
+      href: "/admin-panel/seo-settings",
+      icon: Search,
+      active: isActive("/admin-panel/seo-settings"),
     },
     {
       title: "Към сайта",

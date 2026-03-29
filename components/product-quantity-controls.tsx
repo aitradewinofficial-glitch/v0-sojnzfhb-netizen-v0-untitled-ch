@@ -1,10 +1,10 @@
 "use client"
 
 import { useState } from "react"
-import { ShoppingCart, Minus, Plus } from "lucide-react"
+import { ShoppingCart, Minus, Plus, Check } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
-import { useCart } from "@/context/cart-context" // Import useCart
+import { useCart } from "@/context/cart-context"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -31,8 +31,9 @@ export function ProductQuantityControls({
   isEnglish = false,
 }: ProductQuantityControlsProps) {
   const [quantity, setQuantity] = useState(1)
+  const [isAdded, setIsAdded] = useState(false)
   const router = useRouter()
-  const { addItem } = useCart() // Променено от 'addToCart' на 'addItem'
+  const { addItem } = useCart()
 
   const handleQuantityChange = (newQuantity: number) => {
     if (newQuantity >= 0) {
@@ -50,7 +51,6 @@ export function ProductQuantityControls({
       }
 
       addItem({
-        // Използваме 'addItem'
         id: productId,
         title: productTitle,
         price: productPrice,
@@ -63,6 +63,9 @@ export function ProductQuantityControls({
       toast.success(
         isEnglish ? `${productTitle} added to cart successfully!` : `${productTitle} е добавен в количката успешно!`,
       )
+
+      setIsAdded(true)
+      setTimeout(() => setIsAdded(false), 2000)
     } catch (error) {
       console.error("Error adding to cart:", error)
       toast.error(isEnglish ? "Error adding product to cart" : "Грешка при добавяне на продукта в количката")
@@ -70,20 +73,21 @@ export function ProductQuantityControls({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       {/* Quantity Controls */}
-      <div className="flex items-center space-x-4">
-        <span className="text-sm font-medium text-gray-700">{isEnglish ? "Quantity:" : "Количество:"}</span>
-        <div className="flex items-center border border-gray-300 rounded-md">
-          <Button
-            variant="ghost"
-            size="sm"
+      <div className="flex items-center gap-4">
+        <span className="text-sm font-medium tracking-wide text-neutral-500 uppercase">
+          {isEnglish ? "Quantity" : "Количество"}
+        </span>
+        <div className="flex items-center rounded-xl border border-neutral-200 bg-neutral-50/50 overflow-hidden">
+          <button
             onClick={() => handleQuantityChange(quantity - 1)}
             disabled={quantity <= 1 || disabled}
-            className="h-10 w-10 p-0 hover:bg-gray-100"
+            className="flex h-11 w-11 items-center justify-center text-neutral-600 transition-colors hover:bg-neutral-100 disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label={isEnglish ? "Decrease quantity" : "Намали количеството"}
           >
             <Minus className="h-4 w-4" />
-          </Button>
+          </button>
           <Input
             type="number"
             min="1"
@@ -100,33 +104,45 @@ export function ProductQuantityControls({
               }
             }}
             disabled={disabled}
-            className="w-16 text-center border-0 focus:ring-0 h-10"
+            className="w-14 text-center border-0 border-x border-neutral-200 bg-transparent text-base font-semibold text-neutral-900 focus-visible:ring-0 focus-visible:ring-offset-0 h-11 rounded-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
             onClick={() => handleQuantityChange(quantity + 1)}
             disabled={disabled}
-            className="h-10 w-10 p-0 hover:bg-gray-100"
+            className="flex h-11 w-11 items-center justify-center text-neutral-600 transition-colors hover:bg-neutral-100 disabled:opacity-30 disabled:cursor-not-allowed"
+            aria-label={isEnglish ? "Increase quantity" : "Увеличи количеството"}
           >
             <Plus className="h-4 w-4" />
-          </Button>
+          </button>
         </div>
       </div>
 
       {/* Add to Cart Button */}
       <Button
         onClick={handleAddToCart}
-        disabled={disabled}
-        className="w-full bg-red-600 hover:bg-red-700 text-white py-3 text-lg font-semibold"
+        disabled={disabled || isAdded}
+        className={`w-full rounded-xl py-6 text-base font-semibold tracking-wide transition-all duration-300 ${
+          isAdded
+            ? "bg-emerald-500 hover:bg-emerald-500 text-white"
+            : "bg-neutral-900 hover:bg-neutral-800 text-white active:scale-[0.98]"
+        } disabled:bg-neutral-200 disabled:text-neutral-400`}
         size="lg"
       >
-        <ShoppingCart className="mr-2 h-5 w-5" />
-        {isEnglish ? "Add to Cart" : "Добави в количката"}
+        {isAdded ? (
+          <>
+            <Check className="mr-2 h-5 w-5" />
+            {isEnglish ? "Added to Cart" : "Добавено в количката"}
+          </>
+        ) : (
+          <>
+            <ShoppingCart className="mr-2 h-5 w-5" />
+            {isEnglish ? "Add to Cart" : "Добави в количката"}
+          </>
+        )}
       </Button>
 
       {disabled && (
-        <p className="text-sm text-gray-500 text-center">
+        <p className="text-sm text-neutral-400 text-center">
           {isEnglish ? "Price not available for your customer type" : "Цената не е налична за вашия тип клиент"}
         </p>
       )}

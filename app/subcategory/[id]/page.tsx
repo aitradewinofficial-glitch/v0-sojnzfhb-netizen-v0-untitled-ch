@@ -1,6 +1,8 @@
+import type { Metadata } from "next"
 import Link from "next/link"
 import Image from "next/image"
-import { ChevronRightIcon, Fish, Layers, ArrowLeft } from "lucide-react"
+import { ChevronRightIcon, Layers, ArrowLeft } from "lucide-react"
+import { getSubcategoryById } from "@/lib/data"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -9,22 +11,76 @@ import {
   getSubcategories,
   getCategoryById,
   getActiveQuantityPromotionForSubcategory,
+  getBatchProductRatings,
 } from "@/lib/db"
 import { SiteHeader } from "@/components/site-header"
 import { CategoriesNavbar } from "@/components/categories-navbar"
+import { SiteFooter } from "@/components/site-footer"
+import { StickyBottomNav } from "@/components/sticky-bottom-nav"
 import { getUser } from "@/lib/auth"
 import { ProductCard } from "@/components/product-card"
 import { SubcategoryFilterPanel } from "@/components/subcategory-filter-panel"
+
+// Generate dynamic metadata from SEO fields
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}): Promise<Metadata> {
+  const { id } = await params
+  const subcategory = await getSubcategoryById(id)
+
+  if (!subcategory) {
+    return {
+      title: "Подкатегория не е намерена | MADIX",
+      description: "Търсената подкатегория не съществува.",
+    }
+  }
+
+  // Use SEO fields if available, fallback to title/description
+  const metaTitle = subcategory.seo_meta_title_bg || subcategory.seo_meta_title || subcategory.title
+  const metaDescription = subcategory.seo_meta_description_bg || subcategory.seo_meta_description || subcategory.description || `Разгледайте продуктите в подкатегория ${subcategory.title}`
+  const ogTitle = subcategory.seo_og_title_bg || subcategory.seo_og_title || metaTitle
+  const ogDescription = subcategory.seo_og_description_bg || subcategory.seo_og_description || metaDescription
+  const ogImage = subcategory.seo_og_image || subcategory.photourl
+  const twitterTitle = subcategory.seo_twitter_title || ogTitle
+  const twitterDescription = subcategory.seo_twitter_description || ogDescription
+  const twitterImage = subcategory.seo_twitter_image || ogImage
+  const keywords = subcategory.seo_meta_keywords_bg || subcategory.seo_meta_keywords
+
+  return {
+    title: `${metaTitle} | MADIX Groundbaits`,
+    description: metaDescription,
+    keywords: keywords ? keywords.split(",").map(k => k.trim()) : undefined,
+    robots: subcategory.seo_robots || "index, follow",
+    openGraph: {
+      title: ogTitle,
+      description: ogDescription || undefined,
+      type: "website",
+      images: ogImage ? [{ url: ogImage }] : undefined,
+    },
+    twitter: {
+      card: (subcategory.seo_twitter_card as "summary" | "summary_large_image") || "summary_large_image",
+      title: twitterTitle,
+      description: twitterDescription || undefined,
+      images: twitterImage ? [twitterImage] : undefined,
+    },
+    alternates: subcategory.seo_canonical_url ? {
+      canonical: subcategory.seo_canonical_url,
+    } : undefined,
+  }
+}
 
 export default async function SubcategoryPage({
   params,
   searchParams,
 }: {
-  params: { id: string }
-  searchParams: { minPrice?: string; maxPrice?: string; sort?: string }
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ minPrice?: string; maxPrice?: string; sort?: string }>
 }) {
-  const subcategoryId = params.id
-  console.log("[SubcategoryPage] Rendering. Subcategory ID:", subcategoryId, "Search Params:", searchParams)
+  const { id: subcategoryId } = await params
+  const searchParamsResolved = await searchParams
+  console.log("[SubcategoryPage] Rendering. Subcategory ID:", subcategoryId, "Search Params:", searchParamsResolved)
 
   const allSubcategories = await getSubcategories()
   const subcategory = allSubcategories.find((sub) => sub.id === subcategoryId)
@@ -60,8 +116,8 @@ export default async function SubcategoryPage({
 
   let filteredProducts = [...products]
 
-  const minPriceParam = searchParams.minPrice ? Number.parseFloat(searchParams.minPrice) : undefined
-  const maxPriceParam = searchParams.maxPrice ? Number.parseFloat(searchParams.maxPrice) : undefined
+  const minPriceParam = searchParamsResolved.minPrice ? Number.parseFloat(searchParamsResolved.minPrice) : undefined
+  const maxPriceParam = searchParamsResolved.maxPrice ? Number.parseFloat(searchParamsResolved.maxPrice) : undefined
 
   if (minPriceParam !== undefined) {
     filteredProducts = filteredProducts.filter((product) => {
@@ -79,7 +135,7 @@ export default async function SubcategoryPage({
     console.log(`[SubcategoryPage] Filtered by maxPrice ${maxPriceParam}: ${filteredProducts.length} products`)
   }
 
-  const sortOption = searchParams.sort || "title-asc"
+  const sortOption = searchParamsResolved.sort || "title-asc"
   // Sorting logic...
   switch (sortOption) {
     case "title-asc":
@@ -101,6 +157,10 @@ export default async function SubcategoryPage({
   console.log(
     `[SubcategoryPage] Final filteredProducts count: ${filteredProducts.length}. First product's promo data will use subcategoryPromotion.`,
   )
+
+  // Fetch ratings for all products
+  const productIds = filteredProducts.map((p) => p.objectid)
+  const ratingsMap = await getBatchProductRatings(productIds)
 
   const categories = await getCategories()
   const parentCategoryId = subcategory.cateid
@@ -143,7 +203,7 @@ export default async function SubcategoryPage({
   }
 
   return (
-    <div className="min-h-screen bg-gray-100 text-gray-800">
+    <div className="min-h-screen bg-gray-100 text-gray-800 pb-20 md:pb-0">
       <div className="bg-gray-950">
         <SiteHeader
           categories={categories}
@@ -153,44 +213,55 @@ export default async function SubcategoryPage({
         />
       </div>
       <div className="bg-gray-900">
-        <CategoriesNavbar currentCategoryId={parentCategoryId} />
+        <CategoriesNavbar categories={categories} subcategories={allSubcategories} currentCategoryId={parentCategoryId} isEnglish={false} />
       </div>
-      <section className="relative py-12 bg-white border-b border-gray-200">
+      {/* Apple-style Header Section */}
+      <section className="relative py-8 md:py-12 bg-gradient-to-b from-gray-50 to-white">
         <div className="container mx-auto px-4">
-          <div className="flex items-center space-x-2 text-sm text-gray-600 mb-4">
-            <Link href="/" className="hover:text-red-600">
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-2 text-sm text-gray-500 mb-6">
+            <Link href="/" className="hover:text-gray-900 transition-colors">
               Начало
             </Link>
-            <ChevronRightIcon className="h-4 w-4" />
+            <ChevronRightIcon className="h-3.5 w-3.5" />
             {parentCategory && (
               <>
-                <Link href={`/category/${parentCategory.id}`} className="hover:text-red-600">
+                <Link href={`/category/${parentCategory.id}`} className="hover:text-gray-900 transition-colors">
                   {parentCategory.title}
                 </Link>
-                <ChevronRightIcon className="h-4 w-4" />
+                <ChevronRightIcon className="h-3.5 w-3.5" />
               </>
             )}
-            <span className="text-red-600">{currentSubcategory.title}</span>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
-            <div className="md:col-span-2">
-              <h1 className="text-3xl md:text-4xl font-bold mb-3 text-gray-800">{currentSubcategory.title}</h1>
-              {currentSubcategory.description && <p className="text-gray-600 mb-4">{currentSubcategory.description}</p>}
-              <div className="flex items-center space-x-4 mt-6">
+            <span className="text-gray-900 font-medium">{currentSubcategory.title}</span>
+          </nav>
+          
+          {/* Title and Stats */}
+          <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+            <div className="space-y-3">
+              <h1 className="text-3xl md:text-5xl font-semibold tracking-tight text-gray-900">
+                {currentSubcategory.title}
+              </h1>
+              {currentSubcategory.description && (
+                <p className="text-lg text-gray-500 max-w-2xl leading-relaxed">{currentSubcategory.description}</p>
+              )}
+              <div className="flex items-center gap-4 text-sm">
+                <span className="text-gray-400">
+                  {filteredProducts.length} {filteredProducts.length === 1 ? "продукт" : "продукта"}
+                </span>
                 {parentCategory && (
-                  <Button asChild variant="outline" className="border-gray-300 hover:border-red-600 text-gray-700">
-                    <Link href={`/category/${parentCategory.id}`} className="flex items-center">
-                      <ArrowLeft className="mr-2 h-4 w-4" />
-                      Обратно към {parentCategory.title}
-                    </Link>
-                  </Button>
+                  <Link 
+                    href={`/category/${parentCategory.id}`} 
+                    className="text-gray-500 hover:text-gray-900 transition-colors flex items-center gap-1.5"
+                  >
+                    <ArrowLeft className="h-3.5 w-3.5" />
+                    <span>Към {parentCategory.title}</span>
+                  </Link>
                 )}
-                <p className="text-red-600 font-medium">
-                  {filteredProducts.length} {filteredProducts.length === 1 ? "продукт" : "продукта"} намерени
-                </p>
               </div>
             </div>
-            <div className="hidden md:block relative h-48 rounded-lg overflow-hidden">
+            
+            {/* Optional: Category image on desktop */}
+            <div className="hidden md:block relative h-32 w-48 rounded-2xl overflow-hidden bg-gray-100 flex-shrink-0">
               <Image
                 src={
                   currentSubcategory.photourl ||
@@ -201,13 +272,13 @@ export default async function SubcategoryPage({
                 fill
                 className="object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-white/60 to-transparent"></div>
             </div>
           </div>
         </div>
       </section>
+      {/* Sibling subcategories section - hidden on mobile, shown in floating bar instead */}
       {siblingSubcategories.length > 0 && (
-        <section className="py-6 bg-gray-50 border-b border-gray-200">
+        <section className="hidden md:block py-6 bg-gray-50 border-b border-gray-200">
           <div className="container mx-auto px-4">
             <div className="flex items-center mb-4">
               <Layers className="h-5 w-5 text-red-600 mr-2" />
@@ -235,9 +306,11 @@ export default async function SubcategoryPage({
         <div className="container mx-auto px-4">
           <SubcategoryFilterPanel
             subcategoryId={subcategoryId}
-            minPrice={searchParams.minPrice}
-            maxPrice={searchParams.maxPrice}
-            sortOption={searchParams.sort || "title-asc"}
+            minPrice={searchParamsResolved.minPrice}
+            maxPrice={searchParamsResolved.maxPrice}
+            sortOption={searchParamsResolved.sort || "title-asc"}
+            siblingSubcategories={siblingSubcategories}
+            parentCategoryTitle={parentCategory?.title}
           />
         </div>
       </section>
@@ -245,26 +318,36 @@ export default async function SubcategoryPage({
         <div className="container mx-auto px-4">
           {filteredProducts.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {filteredProducts.map((product) => (
-                <ProductCard
-                  key={product.objectid}
-                  id={product.objectid}
-                  title={product.title}
-                  description={product.description}
-                  price={Number(product.price)}
-                  retailerprice={product.retailerprice ? Number(product.retailerprice) : undefined}
-                  wholesalerprice={product.wholesalerprice ? Number(product.wholesalerprice) : undefined}
-                  photourl={product.photourl}
-                  isLoggedIn={isLoggedIn}
-                  customerType={user?.customerType}
-                  discountPercent={user?.discountPercent}
-                  isNew={product.createdat ? isNewProduct(product.createdat) : false}
-                  discount={getRandomDiscount()}
-                  promo_buy_qty={subcategoryPromotion?.buy_quantity}
-                  promo_free_qty={subcategoryPromotion?.free_quantity}
-                  promo_description={subcategoryPromotion?.description}
-                />
-              ))}
+              {filteredProducts.map((product) => {
+                const rating = ratingsMap.get(product.objectid)
+                return (
+                  <ProductCard
+                    key={product.objectid}
+                    id={product.objectid}
+                    title={product.title}
+                    description={product.description}
+                    price={Number(product.price)}
+                    retailerprice={product.retailerprice ? Number(product.retailerprice) : undefined}
+                    wholesalerprice={product.wholesalerprice ? Number(product.wholesalerprice) : undefined}
+                    europe_price={product.europe_price ? Number(product.europe_price) : undefined}
+                    price_eur={product.price_eur ? Number(product.price_eur) : undefined}
+                    retailerprice_eur={product.retailerprice_eur ? Number(product.retailerprice_eur) : undefined}
+                    wholesalerprice_eur={product.wholesalerprice_eur ? Number(product.wholesalerprice_eur) : undefined}
+                    europe_price_eur={product.europe_price_eur ? Number(product.europe_price_eur) : undefined}
+                    photourl={product.photourl}
+                    isLoggedIn={isLoggedIn}
+                    customerType={user?.customerType}
+                    discountPercent={user?.discountPercent}
+                    isNew={product.createdat ? isNewProduct(product.createdat) : false}
+                    discount={getRandomDiscount()}
+                    promo_buy_qty={subcategoryPromotion?.buy_quantity}
+                    promo_free_qty={subcategoryPromotion?.free_quantity}
+                    promo_description={subcategoryPromotion?.description}
+                    averageRating={rating?.average_rating}
+                    reviewCount={rating?.review_count}
+                  />
+                )
+              })}
             </div>
           ) : (
             <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
@@ -286,67 +369,10 @@ export default async function SubcategoryPage({
           )}
         </div>
       </section>
-      <footer className="bg-black border-t border-gray-800 pt-12 pb-8">
-        <div className="container mx-auto px-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
-            <div>
-              <div className="flex items-center space-x-2 mb-4">
-                <Fish className="h-6 w-6 text-red-500" />
-                <span className="text-lg font-bold text-white">FishingPro</span>
-              </div>
-              <p className="text-gray-400 mb-4">Вашият надежден партньор за риболовни приключения от 2005 година.</p>
-            </div>
-            <div>
-              <h3 className="font-bold text-lg mb-4 text-white">Категории</h3>
-              <ul className="space-y-2">
-                {categories.slice(0, 5).map((category) => (
-                  <li key={category.id}>
-                    <Link
-                      href={`/category/${category.id}`}
-                      className={`text-gray-400 hover:text-yellow-400 transition-colors ${
-                        category.id === parentCategoryId ? "text-yellow-400" : ""
-                      }`}
-                    >
-                      {category.title}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-bold text-lg mb-4 text-white">Информация</h3>
-              <ul className="space-y-2">
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-yellow-400 transition-colors">
-                    За нас
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-yellow-400 transition-colors">
-                    Доставка
-                  </Link>
-                </li>
-                <li>
-                  <Link href="#" className="text-gray-400 hover:text-yellow-400 transition-colors">
-                    Условия за ползване
-                  </Link>
-                </li>
-              </ul>
-            </div>
-            <div>
-              <h3 className="font-bold text-lg mb-4 text-white">Контакти</h3>
-              <ul className="space-y-2">
-                <li className="text-gray-400">Телефон: +359 88 123 4567</li>
-                <li className="text-gray-400">Имейл: info@fishingpro.bg</li>
-                <li className="text-gray-400">Работно време: 9:00 - 18:00</li>
-              </ul>
-            </div>
-          </div>
-          <div className="border-t border-gray-800 pt-8">
-            <p className="text-center text-gray-500">© {new Date().getFullYear()} FishingPro. Всички права запазени.</p>
-          </div>
-        </div>
-      </footer>
+<SiteFooter categories={categories || []} isEnglish={false} />
+
+        {/* Sticky Bottom Navigation - Mobile only */}
+        <StickyBottomNav isEnglish={false} />
     </div>
   )
 }

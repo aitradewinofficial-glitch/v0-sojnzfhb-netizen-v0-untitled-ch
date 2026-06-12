@@ -14,7 +14,7 @@ export type CartItem = {
   freeItems?: number
   isEuropeanPrice?: boolean
   promo_buy_qty?: number | null // Количество за покупка за промоция
-  promo_free_qty?: number | null // Безплатно коли��ество при промоция
+  promo_free_qty?: number | null // Безплатно количество при промоция
 }
 
 // НОВА функция за изчисляване на промоции за цялата количка

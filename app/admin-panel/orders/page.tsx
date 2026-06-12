@@ -499,7 +499,7 @@ export default function OrdersPage() {
   }
 
   const getFreeItemsCount = (order) => {
-    // Това е общият брой безпл��тни артикули за ЦЯЛАТА поръчка,
+    // Това е общият брой безплатни артикули за ЦЯЛАТА поръчка,
     // който се взима от order.free_items_count (записан от submit API)
     if (order.free_items_count !== undefined) return Number(order.free_items_count)
     if (order.freeItemsCount !== undefined) return Number(order.freeItemsCount)
@@ -673,7 +673,7 @@ export default function OrdersPage() {
                 <p className="text-sm text-green-50">
                   {newOrdersCount === 1
                     ? "Имате 1 необработена поръчка. Прегледайте я по-долу."
-                    : `Имате ${newOrdersCount} н��обработени поръчки. Прегледайте ги по-долу.`}
+                    : `Имате ${newOrdersCount} необработени поръчки. Прегледайте ги по-долу.`}
                 </p>
               </div>
             </div>
@@ -718,7 +718,7 @@ export default function OrdersPage() {
               </TooltipTrigger>
               <TooltipContent>
                 <p>
-                  {notificationsEnabled ? "Изключи известията за нови поръчки" : "Вклю��и известията за нови поръчки"}
+                  {notificationsEnabled ? "Изключи известията за нови поръчки" : "Включи известията за нови поръчки"}
                 </p>
               </TooltipContent>
             </Tooltip>
@@ -1254,7 +1254,7 @@ export default function OrdersPage() {
                                 Тази поръчка включва <strong>{freeItemsCountForOrderHeader} безплатни артикула</strong>.
                               </p>
                               <div className="mt-2 space-y-1">
-                                <p className="text-xs font-medium text-green-800">Продукти с ��езплатни артикули:</p>
+                                <p className="text-xs font-medium text-green-800">Продукти с безплатни артикули:</p>
                                 {productsWithFreeItems.map((item, index) => (
                                   <div
                                     key={index}

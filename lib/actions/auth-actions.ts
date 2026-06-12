@@ -29,7 +29,7 @@ export async function registerCustomer(data: RegisterCustomerData) {
       }
     }
 
-    // Проверяваме дали клиентът вече съществува по теле��он
+    // Проверяваме дали клиентът вече съществува по телефон
     const existingCustomerByPhone = await sql`
       SELECT "Document ID" FROM customers WHERE "Phone" = ${data.phone}
     `

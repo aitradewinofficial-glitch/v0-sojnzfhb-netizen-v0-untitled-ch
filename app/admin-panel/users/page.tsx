@@ -111,7 +111,7 @@ export default function UsersPage() {
       setPagination(data.pagination || { total: 0, pages: 1, page: 1, limit: 10 })
     } catch (error) {
       console.error("Грешка при зареждане на клиентите:", error)
-      setError(`Възни��на проблем при зареждане на клиентите: ${error.message}`)
+      setError(`Възникна проблем при зареждане на клиентите: ${error.message}`)
       setCustomers([]) // Задаваме празен масив при грешка
       toast({
         title: "Грешка",

@@ -27,8 +27,8 @@ export async function getUser(): Promise<User | null> {
 
 /**
  * Определя дали текущият контекст е за европейски клиент.
- * Тази функция може да се базира на localStorage или други клиентски инд��катори.
- * За по-точна проверка, базирана на потре��ителски данни, използвайте user.customerType.
+ * Тази функция може да се базира на localStorage или други клиентски индикатори.
+ * За по-точна проверка, базирана на потребителски данни, използвайте user.customerType.
  */
 export function isEuropeanCustomer(): boolean {
   if (typeof window !== "undefined") {

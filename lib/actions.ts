@@ -205,7 +205,7 @@ export async function updateProduct(productData: any) {
       return { success: false, error: "ID на продукта е задължително" }
     }
     if (!title) {
-      return { success: false, error: "Името на ��родукта е задължително" }
+      return { success: false, error: "Името на продукта е задължително" }
     }
     if (!cateid) {
       return { success: false, error: "Категорията е задължителна" }

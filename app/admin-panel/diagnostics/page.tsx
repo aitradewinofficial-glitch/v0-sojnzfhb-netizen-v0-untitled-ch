@@ -46,7 +46,7 @@ export default function DiagnosticsPage() {
 
   const handleUpdateTest = async () => {
     if (!productId || !productTitle) {
-      setUpdateError("ID и заглавие на продукта са ���адължителни")
+      setUpdateError("ID и заглавие на продукта са задължителни")
       return
     }
 
@@ -122,7 +122,7 @@ export default function DiagnosticsPage() {
         <h1 className="text-3xl font-bold">Диагностика на базата данни</h1>
         <Button variant="outline" onClick={fetchTableInfo} disabled={loading}>
           {loading ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-          Об��ови
+          Обнови
         </Button>
       </div>
 
@@ -225,7 +225,7 @@ export default function DiagnosticsPage() {
                   <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> Обновяване...
                 </>
               ) : (
-                "Тест��ай обновяване"
+                "Тествай обновяване"
               )}
             </Button>
 

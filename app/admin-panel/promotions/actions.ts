@@ -166,7 +166,7 @@ export async function applyPromotion(
     return { success: false, error: "Моля, изберете поне една подкатегория." }
   }
   if (minQuantity == null || bonusQuantity == null || minQuantity <= 0 || bonusQuantity < 0) {
-    return { success: false, error: "Количествата трябва да са валидни числа (купи > 0, бе��платно >= 0)." }
+    return { success: false, error: "Количествата трябва да са валидни числа (купи > 0, безплатно >= 0)." }
   }
 
   try {
@@ -210,7 +210,7 @@ export async function applyPromotion(
     return { success: true }
   } catch (error) {
     console.error("[ACTION LOG] applyPromotion: Error applying promotion:", error)
-    const errorMessage = error instanceof Error ? error.message : "Неизвестна гре��ка при прилагане на промоцията."
+    const errorMessage = error instanceof Error ? error.message : "Неизвестна грешка при прилагане на промоцията."
     return { success: false, error: errorMessage }
   }
 }

@@ -129,7 +129,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     `
     queryParams.push(id)
 
-    // Изпълнение на заявкат��
+    // Изпълнение на заявката
     const result = await sql.unsafe(updateQuery, queryParams)
 
     // Обновяване на кеша

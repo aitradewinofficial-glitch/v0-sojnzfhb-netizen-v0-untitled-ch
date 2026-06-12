@@ -255,7 +255,7 @@ export default function PromotionsPage() {
           <div>
             <Label className="mb-2 block">Изберете подкатегории:</Label>
             {isLoading && <p>Зареждане на подкатегории...</p>}
-            {!isLoading && allSubcategories.length === 0 && <p>��яма намерени подкатегории.</p>}
+            {!isLoading && allSubcategories.length === 0 && <p>Няма намерени подкатегории.</p>}
             {!isLoading && allSubcategories.length > 0 && (
               <ScrollArea className="h-60 w-full rounded-md border p-4">
                 <div className="space-y-2">

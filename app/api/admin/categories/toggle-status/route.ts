@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     const currentStatus = existingCategory[0].deleted === true
     const newStatus = !currentStatus
 
-    // Обновява��е статуса на категорията
+    // Обновяване статуса на категорията
     const result = await sql`
       UPDATE categories
       SET deleted = ${newStatus}

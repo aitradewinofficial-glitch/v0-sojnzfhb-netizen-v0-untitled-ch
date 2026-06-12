@@ -1019,7 +1019,7 @@ export default function ProductionAdminPage() {
                     <TableCell>
                       <div className="flex space-x-2">
                         <Button variant="outline" size="sm" onClick={() => openEditEmployeeDialog(employee)}>
-                          Ред��ктирай
+                          Редактирай
                         </Button>
                         <Button
                           variant="outline"

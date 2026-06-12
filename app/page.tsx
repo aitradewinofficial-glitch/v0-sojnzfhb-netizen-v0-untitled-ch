@@ -486,7 +486,7 @@ return (
               </Link>
               <span className="text-gray-400">|</span>
               <Link href="/contact" className="hover:text-gray-900 underline transition-colors">
-                Контак��и
+                Контакти
               </Link>
             </div>
           </div>

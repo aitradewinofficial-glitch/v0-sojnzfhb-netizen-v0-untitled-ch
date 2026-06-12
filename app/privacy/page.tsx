@@ -78,7 +78,7 @@ export default async function PrivacyPage() {
               <section className="mb-8">
                 <h2 className="text-2xl font-semibold text-gray-800 mb-4">5. Споделяне на лични данни</h2>
                 <p className="text-gray-600 leading-relaxed mb-4">
-                  Ние не продав��ме, не отдаваме под наем и не споделяме вашите лични данни с трети страни, освен в
+                  Ние не продаваме, не отдаваме под наем и не споделяме вашите лични данни с трети страни, освен в
                   следните случаи:
                 </p>
                 <ul className="list-disc list-inside text-gray-600 space-y-2 mb-4">

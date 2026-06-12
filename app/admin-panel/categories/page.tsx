@@ -327,7 +327,7 @@ export default function CategoriesPage() {
             <SelectValue placeholder="Избери стойност" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="true">Да / А��тивен / Вярно</SelectItem>
+            <SelectItem value="true">Да / Активен / Вярно</SelectItem>
             <SelectItem value="false">Не / Неактивен / Грешно</SelectItem>
             {col.is_nullable === "YES" && <SelectItem value="null">(празно/NULL)</SelectItem>}
           </SelectContent>

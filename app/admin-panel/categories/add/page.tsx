@@ -106,7 +106,7 @@ export default function AddCategoryPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="title" className="text-sm font-medium">
-                Име на ��атегорията *
+                Име на категорията *
               </label>
               <Input
                 id="title"

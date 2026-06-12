@@ -1327,7 +1327,7 @@ export default function EcontDeliverySelector({
                     <div className="space-y-2 text-sm">
                       <p className="flex items-center">
                         <User className="h-4 w-4 mr-2 text-gray-500" />
-                        <span className="font-medium text-gray-600 mr-2">{isEnglish ? "Name:" : "��ме:"}</span>
+                        <span className="font-medium text-gray-600 mr-2">{isEnglish ? "Name:" : "Име:"}</span>
                         {customerNameProp || (isEnglish ? "No data" : "Няма данни")}
                       </p>
                       <p className="flex items-center">

@@ -328,7 +328,7 @@ export default function EditCategoryPage({ params }: { params: { id: string } })
                         {col.column_name === "Document ID"
                           ? "ID"
                           : col.column_name === "title"
-                            ? "Загла��ие"
+                            ? "Заглавие"
                             : col.column_name === "title_en"
                               ? "Заглавие (EN)"
                               : col.column_name === "description"

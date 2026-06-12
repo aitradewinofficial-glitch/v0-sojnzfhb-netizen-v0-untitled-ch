@@ -105,19 +105,48 @@ export function SiteHeader({
     }
   }
 
-  const currentLocale = pathname.startsWith("/en") ? "en" : "bg"
-  let pathWithoutLocale = pathname.startsWith("/en") ? pathname.substring(3) : pathname
-  if (pathWithoutLocale === "") pathWithoutLocale = "/"
-  const switchToEnglishPath = `/en${pathWithoutLocale}`
-  const switchToBulgarianPath = pathWithoutLocale
+  const [isTranslated, setIsTranslated] = useState(false)
 
-  const handleLanguageChange = (locale: string) => {
-    const newPath = locale === "en" ? switchToEnglishPath : switchToBulgarianPath
-    window.location.href = newPath
-    setShowLanguageDropdown(false)
+  // Read the current Google Translate language from the googtrans cookie
+  useEffect(() => {
+    const match = document.cookie.match(/(?:^|;\s*)googtrans=([^;]+)/)
+    if (match) {
+      const decoded = decodeURIComponent(match[1]) // e.g. "/bg/en"
+      const parts = decoded.split("/")
+      const target = parts[parts.length - 1]
+      setIsTranslated(target === "en")
+    }
+  }, [])
+
+  const setTranslateCookie = (target: "en" | "bg") => {
+    // Set the googtrans cookie on every relevant domain/path scope
+    const value = target === "en" ? "/bg/en" : "/bg/bg"
+    const hostname = window.location.hostname
+    const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString()
+    document.cookie = `googtrans=${value};expires=${expires};path=/`
+    document.cookie = `googtrans=${value};expires=${expires};path=/;domain=${hostname}`
+    document.cookie = `googtrans=${value};expires=${expires};path=/;domain=.${hostname}`
   }
 
-  const isEnglish = isEnglishProp || pathname.startsWith("/en")
+  const handleLanguageChange = (locale: string) => {
+    const target = locale === "en" ? "en" : "bg"
+    if (target === "bg") {
+      // Clear translation back to original Bulgarian
+      const hostname = window.location.hostname
+      document.cookie = "googtrans=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/"
+      document.cookie = `googtrans=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${hostname}`
+      document.cookie = `googtrans=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${hostname}`
+    } else {
+      setTranslateCookie("en")
+    }
+    setShowLanguageDropdown(false)
+    window.location.reload()
+  }
+
+  // Navigation always stays on the default (Bulgarian) routes; Google Translate
+  // handles the on-page translation. Keep currentLocale "bg" for all links.
+  const currentLocale = "bg"
+  const isEnglish = isEnglishProp
 
   return (
     <>
@@ -183,25 +212,25 @@ export function SiteHeader({
               </Link>
 
               {/* Language -- Desktop */}
-              <Link
-                href={currentLocale === "en" ? "/" : "/en"}
-                className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-neutral-300 hover:text-white rounded-full hover:bg-white/[0.08] transition-colors"
+              <button
+                onClick={() => handleLanguageChange(isTranslated ? "bg" : "en")}
+                className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-medium text-neutral-300 hover:text-white rounded-full hover:bg-white/[0.08] transition-colors notranslate"
               >
                 <Globe className="h-3.5 w-3.5" />
-                <span>{currentLocale === "en" ? "БГ" : "EN"}</span>
-              </Link>
+                <span>{isTranslated ? "БГ" : "EN"}</span>
+              </button>
 
               {/* Divider -- Desktop */}
               <div className="hidden lg:block w-px h-5 bg-white/10 mx-1" />
 
               {/* Language -- Mobile */}
-              <div className="relative lg:hidden" ref={languageRef}>
+              <div className="relative lg:hidden notranslate" ref={languageRef}>
                 <button
                   onClick={() => setShowLanguageDropdown(!showLanguageDropdown)}
                   className="flex items-center gap-1 px-2 py-1.5 text-neutral-400 hover:text-white rounded-full hover:bg-white/[0.08] transition-colors"
                 >
                   <Globe className="h-4 w-4" />
-                  <span className="text-xs font-medium">{currentLocale === "en" ? "EN" : "БГ"}</span>
+                  <span className="text-xs font-medium">{isTranslated ? "EN" : "БГ"}</span>
                   <ChevronDown
                     className={`h-3 w-3 transition-transform duration-200 ${showLanguageDropdown ? "rotate-180" : ""}`}
                   />
@@ -212,7 +241,7 @@ export function SiteHeader({
                     <button
                       onClick={() => handleLanguageChange("bg")}
                       className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${
-                        currentLocale !== "en"
+                        !isTranslated
                           ? "bg-white/[0.08] text-white font-medium"
                           : "text-neutral-300 hover:bg-white/[0.05]"
                       }`}
@@ -222,7 +251,7 @@ export function SiteHeader({
                     <button
                       onClick={() => handleLanguageChange("en")}
                       className={`w-full px-4 py-2.5 text-left text-sm transition-colors ${
-                        currentLocale === "en"
+                        isTranslated
                           ? "bg-white/[0.08] text-white font-medium"
                           : "text-neutral-300 hover:bg-white/[0.05]"
                       }`}

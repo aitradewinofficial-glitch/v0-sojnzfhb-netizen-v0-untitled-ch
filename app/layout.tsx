@@ -99,8 +99,47 @@ export default function RootLayout({
             `,
           }}
         />
+        {/* Google Translate - hides default banner/UI while keeping translation engine */}
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `
+              .goog-te-banner-frame.skiptranslate,
+              .goog-te-gadget-icon,
+              #goog-gt-tt,
+              .goog-te-balloon-frame { display: none !important; }
+              .goog-te-gadget { font-size: 0 !important; }
+              #google_translate_element { display: none !important; }
+              body { top: 0 !important; position: static !important; }
+              .skiptranslate iframe { display: none !important; }
+            `,
+          }}
+        />
+        <Script
+          id="google-translate-init"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              function googleTranslateElementInit() {
+                new google.translate.TranslateElement(
+                  {
+                    pageLanguage: 'bg',
+                    includedLanguages: 'en,bg',
+                    autoDisplay: false,
+                  },
+                  'google_translate_element'
+                );
+              }
+            `,
+          }}
+        />
+        <Script
+          id="google-translate-script"
+          strategy="afterInteractive"
+          src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"
+        />
       </head>
       <body className={inter.className}>
+        <div id="google_translate_element" aria-hidden="true" />
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <CartProvider>
             <CompareProvider>

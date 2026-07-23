@@ -24,6 +24,7 @@ import { ProductCard } from "@/components/product-card"
 import { CategoryFilterPanel } from "@/components/category-filter-panel"
 import { SubcategoryImage } from "@/components/images"
 import { StickyBottomNav } from "@/components/sticky-bottom-nav"
+import { slugify } from "@/lib/utils"
 
 // Force dynamic rendering to ensure fresh data
 export const dynamic = "force-dynamic"
@@ -66,15 +67,21 @@ export default async function EnglishCategoryPage({
       throw new Error("Category ID is required")
     }
 
-    const categoryId = id
     const subcategoryId = searchParamsResolved.subcategory
-    console.log(`[EnglishCategoryPage] Current categoryId: ${categoryId}, subcategoryId: ${subcategoryId}`)
+    console.log(`[EnglishCategoryPage] Current category param: ${id}, subcategoryId: ${subcategoryId}`)
 
-    const [category, subcategories, allCategories, user, productsByCategory] = await Promise.all([
-      getCategoryById(categoryId),
-      getSubcategories(categoryId),
+    // Resolve the category first (param may be a Document ID or a name slug),
+    // then use the real Document ID for all downstream lookups.
+    const [category, allCategories, user] = await Promise.all([
+      getCategoryById(id),
       getSubcategories(), // For SiteHeader
       getUser(),
+    ])
+
+    const categoryId = category?.id ?? id
+
+    const [subcategories, productsByCategory] = await Promise.all([
+      getSubcategories(categoryId),
       getProductsByCategory(categoryId),
     ])
 
@@ -97,6 +104,8 @@ export default async function EnglishCategoryPage({
     }
 
     const categoryTitle = getEnglishTitle(category)
+    // Human-readable slug (English title) used for all internal category links.
+    const categorySlug = slugify(categoryTitle) || categoryId
     console.log("[EnglishCategoryPage] Fetched category:", categoryTitle)
     console.log(
       `[EnglishCategoryPage] Found ${productsByCategory.length} products for category ${categoryId} initially.`,
@@ -334,7 +343,7 @@ export default async function EnglishCategoryPage({
               {/* Mobile: Horizontal scroll */}
               <div className="flex gap-3 overflow-x-auto pb-4 md:hidden scrollbar-hide">
                 <Link
-                  href={`/en/category/${categoryId}`}
+                  href={`/en/category/${categorySlug}`}
                   className={`flex-shrink-0 flex flex-col items-center p-3 rounded-xl min-w-[100px] transition-all duration-200 ${
                     !subcategoryId 
                       ? "bg-red-600 shadow-lg shadow-red-600/20" 
@@ -353,7 +362,7 @@ export default async function EnglishCategoryPage({
                 {subcategoriesWithEnglishTitles.map((subcategory) => (
                   <Link
                     key={subcategory.id}
-                    href={`/en/category/${categoryId}?subcategory=${subcategory.id}`}
+                    href={`/en/category/${categorySlug}?subcategory=${subcategory.id}`}
                     className={`flex-shrink-0 flex flex-col items-center p-3 rounded-xl min-w-[100px] transition-all duration-200 ${
                       subcategory.id === subcategoryId 
                         ? "bg-red-600 shadow-lg shadow-red-600/20" 
@@ -381,7 +390,7 @@ export default async function EnglishCategoryPage({
               {/* Desktop: Grid layout with cards */}
               <div className="hidden md:grid grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
                 <Link
-                  href={`/en/category/${categoryId}`}
+                  href={`/en/category/${categorySlug}`}
                   className={`group flex flex-col items-center p-4 rounded-xl border transition-all duration-200 ${
                     !subcategoryId 
                       ? "bg-red-50 border-red-500 shadow-sm" 
@@ -400,7 +409,7 @@ export default async function EnglishCategoryPage({
                 {subcategoriesWithEnglishTitles.map((subcategory) => (
                   <Link
                     key={subcategory.id}
-                    href={`/en/category/${categoryId}?subcategory=${subcategory.id}`}
+                    href={`/en/category/${categorySlug}?subcategory=${subcategory.id}`}
                     className={`group flex flex-col items-center p-4 rounded-xl border transition-all duration-200 ${
                       subcategory.id === subcategoryId 
                         ? "bg-red-50 border-red-500 shadow-sm" 
@@ -431,7 +440,7 @@ export default async function EnglishCategoryPage({
         <section className="py-4 bg-gray-50">
           <div className="container mx-auto px-4">
             <CategoryFilterPanel
-              categoryId={categoryId}
+              categoryId={categorySlug}
               subcategories={subcategoriesWithEnglishTitles}
               currentSubcategoryId={subcategoryId}
                 minPrice={searchParamsResolved.minPrice}
@@ -495,7 +504,7 @@ export default async function EnglishCategoryPage({
                 </p>
                 {subcategoryId && (
                   <Button asChild className="bg-red-600 hover:bg-red-700 text-white">
-                    <Link href={`/en/category/${categoryId}`}>All products in category</Link>
+                    <Link href={`/en/category/${categorySlug}`}>All products in category</Link>
                   </Button>
                 )}
               </div>

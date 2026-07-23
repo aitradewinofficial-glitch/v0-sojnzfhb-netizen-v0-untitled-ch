@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { executeQueryWithRetry, dbInitialized } from "@/lib/db"
+import { slugify } from "@/lib/utils"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -145,8 +146,8 @@ function generateXmlResponse(products: any[], siteUrl: string, currency: string)
     const displayPrice = currency === "EUR" ? convertBgnToEur(price) : price.toFixed(2)
     const displayCurrency = currency === "EUR" ? "EUR" : "BGN"
     
-    // Build product URL - using objectid for the product page
-    const productUrl = `${siteUrl}/product/${encodeURIComponent(productId)}`
+    // Build product URL - using the slugified title (falls back to objectid)
+    const productUrl = `${siteUrl}/product/${encodeURIComponent(slugify(product.title) || productId)}`
     
     // Build image URL
     let imageUrl = product.photourl || ""
@@ -221,7 +222,7 @@ function generateCsvResponse(products: any[], siteUrl: string, currency: string)
     const displayPrice = currency === "EUR" ? convertBgnToEur(price) : price.toFixed(2)
     const displayCurrency = currency === "EUR" ? "EUR" : "BGN"
     
-    const productUrl = `${siteUrl}/product/${encodeURIComponent(productId)}`
+    const productUrl = `${siteUrl}/product/${encodeURIComponent(slugify(product.title) || productId)}`
 
     let imageUrl = product.photourl || ""
     if (imageUrl && !imageUrl.startsWith("http")) {

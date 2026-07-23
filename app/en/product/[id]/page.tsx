@@ -25,6 +25,7 @@ import {
   getActiveQuantityPromotionForSubcategory,
   getProductRatingSummary,
 } from "@/lib/db"
+import { slugify } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
 
@@ -43,10 +44,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://madix-groundbaits.bg"
-  const productUrl = `${baseUrl}/en/product/${productId}`
-  const productImage = product.photourl || `${baseUrl}/og-image.jpg`
   const displayTitle = product.title_en || product.title
   const displayDescription = product.description_en || product.description
+  const enSlug = slugify(displayTitle) || productId
+  const bgSlug = slugify(product.title) || productId
+  const productUrl = `${baseUrl}/en/product/${enSlug}`
+  const productImage = product.photourl || `${baseUrl}/og-image.jpg`
 
   return {
     title: product.seo_meta_title || `${displayTitle} | Madix Groundbaits`,
@@ -56,7 +59,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     alternates: {
       canonical: product.seo_canonical_url || productUrl,
       languages: {
-        "bg": `${baseUrl}/product/${productId}`,
+        "bg": `${baseUrl}/product/${bgSlug}`,
         "en": productUrl,
       },
     },
@@ -262,7 +265,7 @@ async function ProductContent({ productId }: { productId: string }) {
       },
       "offers": {
         "@type": "Offer",
-        "url": `${baseUrl}/en/product/${product.objectid}`,
+        "url": `${baseUrl}/en/product/${slugify(product.title_en || product.title) || product.objectid}`,
         "priceCurrency": "EUR",
         "price": eurPrice || (priceToDisplay ? priceToDisplay / 1.96 : null),
         "availability": `https://schema.org/${product.seo_schema_availability || "InStock"}`,

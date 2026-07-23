@@ -11,6 +11,7 @@ import { useCart, type CartItem } from "@/context/cart-context"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { StarRatingCompact } from "@/components/star-rating"
+import { productHref } from "@/lib/utils"
 
 interface ProductCardProps {
   id: string
@@ -183,7 +184,7 @@ export function ProductCard({
 
   const showQuantityPromoBadgeOnImage = promo_buy_qty && promo_buy_qty > 0 && promo_free_qty && promo_free_qty > 0
 
-  const productUrl = isEnglish ? `/en/product/${id}` : `/product/${id}`
+  const productUrl = productHref(title, id, isEnglish)
 
   const handleProductClick = (e: React.MouseEvent) => {
     if (isEnglish) {

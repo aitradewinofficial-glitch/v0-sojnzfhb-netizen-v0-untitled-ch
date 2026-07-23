@@ -6,7 +6,7 @@ import { type FormEvent, useState, useEffect, useRef } from "react"
 import { Search, X, Loader2, ArrowRight, History } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
-import { cn } from "@/lib/utils"
+import { cn, productHref } from "@/lib/utils"
 
 type SearchResult = {
   objectid: string
@@ -84,7 +84,7 @@ export function SearchForm({ className = "", fullWidth = false, placeholder }: S
           e.preventDefault()
           if (selectedIndex >= 0) {
             if (results.length > 0 && selectedIndex < results.length) {
-              router.push(`/product/${results[selectedIndex].objectid}`)
+              router.push(productHref(results[selectedIndex].title, results[selectedIndex].objectid))
               saveToRecentSearches(query)
               setShowDropdown(false)
             } else if (recentSearches.length > 0 && selectedIndex < recentSearches.length) {
@@ -256,7 +256,7 @@ export function SearchForm({ className = "", fullWidth = false, placeholder }: S
                 {results.map((result, index) => (
                   <li key={result.objectid}>
                     <Link
-                      href={`/product/${result.objectid}`}
+                      href={productHref(result.title, result.objectid)}
                       className={cn(
                         "flex items-center gap-3 px-4 py-2.5 transition-colors",
                         index === selectedIndex ? "bg-white/[0.08]" : "hover:bg-white/[0.05]",

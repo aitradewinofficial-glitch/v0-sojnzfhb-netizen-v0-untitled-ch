@@ -6,6 +6,7 @@ import { useCart } from "@/context/cart-context"
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
+import { productHref } from "@/lib/utils"
 
 export function CartIcon() {
   const { items, getItemCount, getTotalPrice, updateQuantity, removeItem } = useCart()
@@ -132,7 +133,7 @@ export function CartIcon() {
                     {/* Product Info */}
                     <div className="flex-1 min-w-0">
                       <Link 
-                        href={isEnglish ? `/en/product/${item.id}` : `/product/${item.id}`}
+                        href={productHref(item.title, item.id, isEnglish)}
                         className="text-sm font-medium text-neutral-900 hover:text-amber-600 line-clamp-1 transition-colors"
                       >
                         {item.title}

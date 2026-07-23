@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { EcontDeliverySelector } from "@/components/econt-delivery-selector"
+import { productHref } from "@/lib/utils"
 import {
   Trash2,
   ShoppingCart,
@@ -482,7 +483,7 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
               )}
               <div className="flex-grow">
                 <h3 className="font-semibold text-xl text-gray-800">
-                  <Link href={isEnglish ? `/en/product/${item.id}` : `/product/${item.id}`}>{item.title}</Link>
+                        <Link href={productHref(item.title, item.id, isEnglish)}>{item.title}</Link>
                 </h3>
                 <div className="text-md text-gray-700 mt-1">
                   <span className="font-semibold text-lg">{formatPrice(convertBgnToEur(item.price))} €</span>

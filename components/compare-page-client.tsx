@@ -5,6 +5,7 @@ import Link from "next/link"
 import { X, ArrowLeft, Scale } from "lucide-react"
 import { useCompare } from "@/context/compare-context"
 import { Button } from "@/components/ui/button"
+import { productHref } from "@/lib/utils"
 
 export function ComparePageClient() {
   const { items, removeItem, clearAll } = useCompare()
@@ -87,7 +88,7 @@ export function ComparePageClient() {
                   <td className="p-4 text-sm font-medium text-neutral-500">Снимка</td>
                   {items.map((item) => (
                     <td key={item.id} className="p-4">
-                      <Link href={`/product/${item.id}`} className="block">
+                      <Link href={productHref(item.title, item.id)} className="block">
                         <div className="aspect-square relative rounded-xl bg-neutral-50 overflow-hidden max-w-[160px] mx-auto border border-neutral-100">
                           <Image
                             src={item.photourl || `/placeholder.svg?height=160&width=160&query=${encodeURIComponent(item.title)}`}
@@ -108,8 +109,8 @@ export function ComparePageClient() {
                   {items.map((item) => (
                     <td key={item.id} className="p-4 text-center">
                       <Link 
-                        href={`/product/${item.id}`}
-                        className="font-semibold text-neutral-900 hover:text-amber-600 transition-colors line-clamp-2"
+                    href={productHref(item.title, item.id)}
+                    className="font-semibold text-neutral-900 hover:text-amber-600 transition-colors line-clamp-2"
                       >
                         {item.title}
                       </Link>
@@ -175,8 +176,8 @@ export function ComparePageClient() {
                           asChild
                           className="rounded-full bg-neutral-900 hover:bg-neutral-800 text-white"
                         >
-                          <Link href={`/product/${item.id}`}>
-                            Виж продукта
+                <Link href={productHref(item.title, item.id)}>
+                  Виж продукта
                           </Link>
                         </Button>
                         <Button

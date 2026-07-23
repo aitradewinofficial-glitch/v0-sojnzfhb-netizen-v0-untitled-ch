@@ -24,6 +24,7 @@ import { ProductQuantityControls } from "@/components/product-quantity-controls"
 import { StickyBuyButton } from "@/components/sticky-buy-button"
 import { CompareFloatingButton } from "@/components/compare-floating-button"
 import { ProductFAQsSection } from "@/components/product-faqs-section"
+import { slugify } from "@/lib/utils"
 
 // Dynamic SEO metadata from database
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -40,7 +41,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   }
 
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://madix-groundbaits.bg"
-  const productUrl = `${baseUrl}/product/${productId}`
+  const productUrl = `${baseUrl}/product/${slugify(product.title) || productId}`
   const productImage = product.photourl || `${baseUrl}/og-image.jpg`
 
   return {
@@ -243,7 +244,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
       },
       "offers": {
         "@type": "Offer",
-        "url": `${baseUrl}/product/${product.objectid}`,
+        "url": `${baseUrl}/product/${slugify(product.title) || product.objectid}`,
         "priceCurrency": "BGN",
         "price": priceToDisplay || product.price,
         "availability": `https://schema.org/${product.seo_schema_availability || "InStock"}`,

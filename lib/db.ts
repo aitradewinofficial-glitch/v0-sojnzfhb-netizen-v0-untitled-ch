@@ -263,6 +263,17 @@ export async function getProductById(id: string) {
         [id.toLowerCase()],
       )
     }
+    // Resolve by slugified title (e.g. "hs-12" -> product titled "HS # 12").
+    // The normalization below MUST stay in sync with slugify() in lib/utils.ts.
+    if (result.length === 0 && id) {
+      result = await executeQueryWithRetry(
+        `SELECT * FROM new_products
+         WHERE LOWER(REGEXP_REPLACE(REGEXP_REPLACE(title, '[^[:alnum:]]+', '-', 'g'), '(^-+|-+$)', '', 'g')) = $1
+            OR LOWER(REGEXP_REPLACE(REGEXP_REPLACE(COALESCE(title_en, ''), '[^[:alnum:]]+', '-', 'g'), '(^-+|-+$)', '', 'g')) = $1
+         ORDER BY createdat DESC LIMIT 1`,
+        [id.toLowerCase()],
+      )
+    }
     return result[0] || null
   } catch (error) {
     console.error(`LIB/DB.TS: Error fetching product ${id}:`, error)

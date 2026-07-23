@@ -24,7 +24,7 @@ import { ProductQuantityControls } from "@/components/product-quantity-controls"
 import { StickyBuyButton } from "@/components/sticky-buy-button"
 import { CompareFloatingButton } from "@/components/compare-floating-button"
 import { ProductFAQsSection } from "@/components/product-faqs-section"
-import { slugify } from "@/lib/utils"
+import { slugify, subcategoryHref } from "@/lib/utils"
 
 // Dynamic SEO metadata from database
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
@@ -299,7 +299,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
               )}
               {subcategory && (
                 <>
-                  <Link href={`/subcategory/${subcategory.id}`} className="transition-colors hover:text-neutral-700">
+                  <Link href={subcategoryHref(subcategory.title, subcategory.id)} className="transition-colors hover:text-neutral-700">
                     {subcategory.title}
                   </Link>
                   <ChevronRight className="h-3.5 w-3.5" />
@@ -432,7 +432,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
                     <div className="flex items-center gap-3 text-sm">
                       <Package className="h-4 w-4 text-neutral-400 shrink-0" />
                       <span className="text-neutral-500">Подкатегория:</span>
-                      <Link href={`/subcategory/${subcategory.id}`} className="font-medium text-neutral-700 hover:text-neutral-900 transition-colors">
+                      <Link href={subcategoryHref(subcategory.title, subcategory.id)} className="font-medium text-neutral-700 hover:text-neutral-900 transition-colors">
                         {subcategory.title}
                       </Link>
                     </div>

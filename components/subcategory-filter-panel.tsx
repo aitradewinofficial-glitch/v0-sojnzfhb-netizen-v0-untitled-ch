@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet"
+import { subcategoryHref } from "@/lib/utils"
 
 interface SubcategoryFilterPanelProps {
   subcategoryId: string
@@ -166,7 +167,7 @@ export function SubcategoryFilterPanel({
                   {siblingSubcategories.map((sibling) => (
                     <DropdownMenuItem key={sibling.id} asChild className="rounded-xl py-3 px-4 text-sm cursor-pointer focus:bg-gray-100">
                       <Link 
-                        href={isEnglish ? `/en/subcategory/${sibling.id}` : `/subcategory/${sibling.id}`}
+                        href={subcategoryHref(isEnglish && sibling.title_en ? sibling.title_en : sibling.title, sibling.id, isEnglish)}
                       >
                         {isEnglish && sibling.title_en ? sibling.title_en : sibling.title}
                       </Link>

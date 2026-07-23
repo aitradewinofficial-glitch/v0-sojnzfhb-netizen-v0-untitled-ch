@@ -3,6 +3,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { ChevronRightIcon, Layers, ArrowLeft } from "lucide-react"
 import { getSubcategoryById } from "@/lib/data"
+import { slugify, subcategoryHref } from "@/lib/utils"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -83,13 +84,29 @@ export default async function SubcategoryPage({
   console.log("[SubcategoryPage] Rendering. Subcategory ID:", subcategoryId, "Search Params:", searchParamsResolved)
 
   const allSubcategories = await getSubcategories()
-  const subcategory = allSubcategories.find((sub) => sub.id === subcategoryId)
+  // Resolve by Document ID first, then fall back to a slugified title match so
+  // URLs like "/subcategory/микро-pop-up-6-8-mm" work like product slugs.
+  let decodedParam = subcategoryId
+  try {
+    decodedParam = decodeURIComponent(subcategoryId)
+  } catch {
+    // Leave as-is if not a valid encoded sequence.
+  }
+  const requestedSlug = slugify(decodedParam)
+  const subcategory =
+    allSubcategories.find((sub) => sub.id === subcategoryId) ||
+    allSubcategories.find(
+      (sub) => slugify(sub.title) === requestedSlug || (sub.title_en && slugify(sub.title_en) === requestedSlug),
+    )
+  // Use the real Document ID for all downstream data lookups.
+  const resolvedId = subcategory?.id ?? subcategoryId
+  const subcategorySlug = subcategory ? slugify(subcategory.title) || subcategory.id : subcategoryId
 
   const user = await getUser()
   const isLoggedIn = !!user
   console.log("[SubcategoryPage] User data:", JSON.stringify(user, null, 2))
 
-  const subcategoryPromotion = await getActiveQuantityPromotionForSubcategory(subcategoryId, user?.customerType)
+  const subcategoryPromotion = await getActiveQuantityPromotionForSubcategory(resolvedId, user?.customerType)
   console.log(
     `[SubcategoryPage] Fetched subcategoryPromotion for subcategory ${subcategoryId} and customerType ${user?.customerType}:`,
     JSON.stringify(subcategoryPromotion, null, 2),
@@ -111,8 +128,8 @@ export default async function SubcategoryPage({
   }
   console.log("[SubcategoryPage] Fetched subcategory:", subcategory?.title)
 
-  const products = await getProductsBySubcategory(subcategoryId)
-  console.log(`[SubcategoryPage] Found ${products.length} products for subcategory ${subcategoryId} initially.`)
+  const products = await getProductsBySubcategory(resolvedId)
+  console.log(`[SubcategoryPage] Found ${products.length} products for subcategory ${resolvedId} initially.`)
 
   let filteredProducts = [...products]
 
@@ -167,7 +184,7 @@ export default async function SubcategoryPage({
   const currentSubcategory = subcategory
   const parentCategory = parentCategoryId ? await getCategoryById(parentCategoryId) : null
   const siblingSubcategories = parentCategoryId
-    ? allSubcategories.filter((sub) => sub.cateid === parentCategoryId && sub.id !== subcategoryId)
+    ? allSubcategories.filter((sub) => sub.cateid === parentCategoryId && sub.id !== resolvedId)
     : []
 
   const getCategoryImage = (category: { title: string; photourl?: string }) => {
@@ -291,7 +308,7 @@ export default async function SubcategoryPage({
                 ) => (
                   <Link
                     key={siblingSub.id}
-                    href={`/subcategory/${siblingSub.id}`}
+                    href={subcategoryHref(siblingSub.title, siblingSub.id)}
                     className="px-4 py-2 bg-white hover:bg-gray-100 border border-gray-300 hover:border-red-600 rounded-md text-sm transition-colors text-gray-700"
                   >
                     {siblingSub.title}
@@ -305,7 +322,7 @@ export default async function SubcategoryPage({
       <section className="py-4 bg-gray-50">
         <div className="container mx-auto px-4">
           <SubcategoryFilterPanel
-            subcategoryId={subcategoryId}
+            subcategoryId={subcategorySlug}
             minPrice={searchParamsResolved.minPrice}
             maxPrice={searchParamsResolved.maxPrice}
             sortOption={searchParamsResolved.sort || "title-asc"}

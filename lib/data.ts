@@ -228,7 +228,17 @@ export async function getSubcategoryById(id: string): Promise<Subcategory | null
   return retryOperation(async () => {
     console.log(`[getSubcategoryById] Fetching subcategory with ID: ${id}`)
 
-    const result = await sql`
+    // Route params can arrive percent-encoded (e.g. Cyrillic slugs). Decode
+    // defensively so slug matching compares against the human-readable slug.
+    let decodedId = id
+    try {
+      decodedId = decodeURIComponent(id)
+    } catch {
+      // Leave decodedId as-is if the value isn't a valid encoded sequence.
+    }
+    const slug = decodedId.toLowerCase()
+
+    let result = await sql`
       SELECT 
         "Document ID" as id,
         title,
@@ -260,6 +270,48 @@ export async function getSubcategoryById(id: string): Promise<Subcategory | null
       FROM subcategories 
       WHERE "Document ID" = ${id}
     `
+
+    // Resolve by slugified title/title_en (e.g. "микро-pop-up-6-8-mm").
+    // The normalization below MUST stay in sync with slugify() in lib/utils.ts.
+    if (result.length === 0) {
+      result = await sql`
+        SELECT 
+          "Document ID" as id,
+          title,
+          title_en,
+          description,
+          description_en,
+          photourl,
+          cateid,
+          seo_meta_title,
+          seo_meta_title_bg,
+          seo_meta_description,
+          seo_meta_description_bg,
+          seo_meta_keywords,
+          seo_meta_keywords_bg,
+          seo_og_title,
+          seo_og_title_bg,
+          seo_og_description,
+          seo_og_description_bg,
+          seo_og_image,
+          seo_twitter_card,
+          seo_twitter_title,
+          seo_twitter_description,
+          seo_twitter_image,
+          seo_canonical_url,
+          seo_robots,
+          seo_schema_type,
+          seo_focus_keyword,
+          seo_secondary_keywords
+        FROM subcategories 
+        WHERE (deleted = false OR deleted IS NULL)
+          AND (
+            LOWER(REGEXP_REPLACE(REGEXP_REPLACE(title, '[^[:alnum:]]+', '-', 'g'), '(^-+|-+$)', '', 'g')) = ${slug}
+            OR LOWER(REGEXP_REPLACE(REGEXP_REPLACE(COALESCE(title_en, ''), '[^[:alnum:]]+', '-', 'g'), '(^-+|-+$)', '', 'g')) = ${slug}
+          )
+        LIMIT 1
+      `
+    }
 
     const subcategory = result[0] || null
     console.log(

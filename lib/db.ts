@@ -252,26 +252,35 @@ export async function getProductById(id: string) {
     console.error("LIB/DB.TS: getProductById - Product ID is undefined or null.")
     return null
   }
+  // Route params can arrive percent-encoded (e.g. Cyrillic slugs like
+  // "%D0%BC%D0%B5%D1%82..." for "метален-..."). Decode defensively so slug
+  // matching compares against the human-readable slug, not the encoded bytes.
+  let decodedId = id
   try {
-    let result = await executeQueryWithRetry(`SELECT * FROM new_products WHERE "Document ID" = $1`, [id])
+    decodedId = decodeURIComponent(id)
+  } catch {
+    // Leave decodedId as-is if the value isn't a valid encoded sequence.
+  }
+  try {
+    let result = await executeQueryWithRetry(`SELECT * FROM new_products WHERE "Document ID" = $1`, [decodedId])
     if (result.length === 0) {
-      result = await executeQueryWithRetry(`SELECT * FROM new_products WHERE objectid = $1`, [id])
+      result = await executeQueryWithRetry(`SELECT * FROM new_products WHERE objectid = $1`, [decodedId])
     }
-    if (result.length === 0 && id) {
+    if (result.length === 0 && decodedId) {
       result = await executeQueryWithRetry(
         `SELECT * FROM new_products WHERE LOWER(title) = LOWER($1) ORDER BY createdat DESC LIMIT 1`,
-        [id.toLowerCase()],
+        [decodedId.toLowerCase()],
       )
     }
-    // Resolve by slugified title (e.g. "hs-12" -> product titled "HS # 12").
+    // Resolve by slugified title (e.g. "hs-12" -> "HS # 12", "метален-живарник-38-см" -> "Метален живарник 38 см").
     // The normalization below MUST stay in sync with slugify() in lib/utils.ts.
-    if (result.length === 0 && id) {
+    if (result.length === 0 && decodedId) {
       result = await executeQueryWithRetry(
         `SELECT * FROM new_products
          WHERE LOWER(REGEXP_REPLACE(REGEXP_REPLACE(title, '[^[:alnum:]]+', '-', 'g'), '(^-+|-+$)', '', 'g')) = $1
             OR LOWER(REGEXP_REPLACE(REGEXP_REPLACE(COALESCE(title_en, ''), '[^[:alnum:]]+', '-', 'g'), '(^-+|-+$)', '', 'g')) = $1
          ORDER BY createdat DESC LIMIT 1`,
-        [id.toLowerCase()],
+        [decodedId.toLowerCase()],
       )
     }
     return result[0] || null

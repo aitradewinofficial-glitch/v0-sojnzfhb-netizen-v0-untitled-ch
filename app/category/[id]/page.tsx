@@ -28,6 +28,7 @@ import { ProductCard } from "@/components/product-card"
 import { CategoryFilterPanel } from "@/components/category-filter-panel"
 import { SubcategoryImage } from "@/components/images"
 import { StickyBottomNav } from "@/components/sticky-bottom-nav"
+import { categoryHref, slugify } from "@/lib/utils"
 
 // Force dynamic rendering to ensure fresh data
 export const dynamic = "force-dynamic"
@@ -115,16 +116,24 @@ export default async function CategoryPage({
       throw new Error("Category ID is required")
     }
 
-    const categoryId = id
     const subcategoryId = searchParamsResolved.subcategory
-    console.log(`[CategoryPage] Current categoryId: ${categoryId}, subcategoryId: ${subcategoryId}`)
+    console.log(`[CategoryPage] Current category param: ${id}, subcategoryId: ${subcategoryId}`)
 
-    const [category, subcategories, allSubcategories, categories, user, productsByCategory] = await Promise.all([
-      getCategoryById(categoryId),
-      getSubcategories(categoryId),
+    // Resolve the category first (param may be a Document ID or a name slug like
+    // "аксесоари"), then use the real Document ID for all downstream lookups.
+    const [category, allSubcategories, categories, user] = await Promise.all([
+      getCategoryById(id),
       getSubcategories(), // For SiteHeader
       getCategories(), // For SiteFooter
       getUser(),
+    ])
+
+    const categoryId = category?.id ?? id
+    // Human-readable slug used for all internal category links.
+    const categorySlug = category ? slugify(category.title) || category.id : id
+
+    const [subcategories, productsByCategory] = await Promise.all([
+      getSubcategories(categoryId),
       getProductsByCategory(categoryId),
     ])
 
@@ -349,7 +358,7 @@ export default async function CategoryPage({
               {/* Mobile: Horizontal scroll */}
               <div className="flex gap-3 overflow-x-auto pb-4 md:hidden scrollbar-hide">
                 <Link
-                  href={`/category/${categoryId}`}
+                  href={`/category/${categorySlug}`}
                   className={`flex-shrink-0 flex flex-col items-center p-3 rounded-xl min-w-[100px] transition-all duration-200 ${
                     !subcategoryId 
                       ? "bg-red-600 shadow-lg shadow-red-600/20" 
@@ -368,7 +377,7 @@ export default async function CategoryPage({
                 {subcategories.map((subcategory) => (
                   <Link
                     key={subcategory.id}
-                    href={`/category/${categoryId}?subcategory=${subcategory.id}`}
+                    href={`/category/${categorySlug}?subcategory=${subcategory.id}`}
                     className={`flex-shrink-0 flex flex-col items-center p-3 rounded-xl min-w-[100px] transition-all duration-200 ${
                       subcategory.id === subcategoryId 
                         ? "bg-red-600 shadow-lg shadow-red-600/20" 
@@ -396,7 +405,7 @@ export default async function CategoryPage({
               {/* Desktop: Grid layout with cards */}
               <div className="hidden md:grid grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
                 <Link
-                  href={`/category/${categoryId}`}
+                  href={`/category/${categorySlug}`}
                   className={`group flex flex-col items-center p-4 rounded-xl border transition-all duration-200 ${
                     !subcategoryId 
                       ? "bg-red-50 border-red-500 shadow-sm" 
@@ -415,7 +424,7 @@ export default async function CategoryPage({
                 {subcategories.map((subcategory) => (
                   <Link
                     key={subcategory.id}
-                    href={`/category/${categoryId}?subcategory=${subcategory.id}`}
+                    href={`/category/${categorySlug}?subcategory=${subcategory.id}`}
                     className={`group flex flex-col items-center p-4 rounded-xl border transition-all duration-200 ${
                       subcategory.id === subcategoryId 
                         ? "bg-red-50 border-red-500 shadow-sm" 
@@ -446,7 +455,7 @@ export default async function CategoryPage({
         <section className="py-4 bg-gray-50">
           <div className="container mx-auto px-4">
             <CategoryFilterPanel
-              categoryId={categoryId}
+              categoryId={categorySlug}
               subcategories={subcategories}
               currentSubcategoryId={subcategoryId}
                 minPrice={searchParamsResolved.minPrice}
@@ -501,7 +510,7 @@ export default async function CategoryPage({
                 </p>
                 {subcategoryId && (
                   <Button asChild className="bg-red-600 hover:bg-red-700 text-white">
-                    <Link href={`/category/${categoryId}`}>Всички продукти в категорията</Link>
+                    <Link href={`/category/${categorySlug}`}>Всички продукти в категорията</Link>
                   </Button>
                 )}
               </div>

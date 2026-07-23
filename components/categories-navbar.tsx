@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { useState, useRef, useEffect } from "react"
 import { ChevronDown } from "lucide-react"
-import { subcategoryHref } from "@/lib/utils"
+import { categoryHref, subcategoryHref } from "@/lib/utils"
 
 interface Category {
   id: string
@@ -111,7 +111,7 @@ export function CategoriesNavbar({
                   onMouseLeave={handleMouseLeave}
                 >
                   <Link
-                    href={isEnglish ? `/en/category/${category.id}` : `/category/${category.id}`}
+                    href={categoryHref(categoryTitle, category.id, isEnglish)}
                     className={`
                       relative flex items-center gap-1.5 px-4 py-2 rounded-full text-[13px] font-medium
                       transition-all duration-300 ease-out whitespace-nowrap
@@ -180,7 +180,7 @@ export function CategoriesNavbar({
               return (
                 <Link
                   key={category.id}
-                  href={isEnglish ? `/en/category/${category.id}` : `/category/${category.id}`}
+                  href={categoryHref(categoryTitle, category.id, isEnglish)}
                   className={`
                     relative flex-shrink-0 px-4 py-2 rounded-full text-[13px] font-medium
                     transition-all duration-300 whitespace-nowrap

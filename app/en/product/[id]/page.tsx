@@ -25,7 +25,7 @@ import {
   getActiveQuantityPromotionForSubcategory,
   getProductRatingSummary,
 } from "@/lib/db"
-import { slugify } from "@/lib/utils"
+import { slugify, subcategoryHref } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
 
@@ -321,7 +321,7 @@ async function ProductContent({ productId }: { productId: string }) {
               )}
               {subcategory && (
                 <>
-                  <Link href={`/en/subcategory/${subcategory.id}`} className="transition-colors hover:text-neutral-700">
+                  <Link href={subcategoryHref(subcategoryTitle, subcategory.id, true)} className="transition-colors hover:text-neutral-700">
                     {subcategoryTitle}
                   </Link>
                   <ChevronRight className="h-3.5 w-3.5" />
@@ -464,7 +464,7 @@ async function ProductContent({ productId }: { productId: string }) {
                     <div className="flex items-center gap-3 text-sm">
                       <Package className="h-4 w-4 text-neutral-400 shrink-0" />
                       <span className="text-neutral-500">Subcategory:</span>
-                      <Link href={`/en/subcategory/${subcategory.id}`} className="font-medium text-neutral-700 hover:text-neutral-900 transition-colors">
+                      <Link href={subcategoryHref(subcategoryTitle, subcategory.id, true)} className="font-medium text-neutral-700 hover:text-neutral-900 transition-colors">
                         {subcategoryTitle}
                       </Link>
                     </div>

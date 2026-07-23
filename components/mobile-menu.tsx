@@ -7,6 +7,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Menu, X, ChevronRight, Search, Loader2 } from "lucide-react"
 import { useMobileMenu } from "@/context/mobile-menu-context"
+import { subcategoryHref } from "@/lib/utils"
 
 interface Category {
   id: string
@@ -156,7 +157,7 @@ export function MobileMenu({
       : subcategory.title || subcategory.title_en || "Без име"
 
   const getCategoryUrl = (id: string) => (isEnglish ? `/en/category/${id}` : `/category/${id}`)
-  const getSubcategoryUrl = (id: string) => (isEnglish ? `/en/subcategory/${id}` : `/subcategory/${id}`)
+  const getSubcategoryUrl = (id: string, title?: string | null) => subcategoryHref(title, id, isEnglish)
   const getProductUrl = (id: string) => (isEnglish ? `/en/product/${id}` : `/product/${id}`)
   const getSearchUrl = (q: string) =>
     isEnglish ? `/en/search?q=${encodeURIComponent(q)}` : `/search?q=${encodeURIComponent(q)}`
@@ -348,7 +349,7 @@ export function MobileMenu({
                           return (
                             <Link
                               key={subcategory.id}
-                              href={getSubcategoryUrl(subcategory.id)}
+                              href={getSubcategoryUrl(subcategory.id, getSubcategoryTitle(subcategory))}
                               className={`block px-8 py-3.5 text-sm font-medium border-b border-neutral-100 last:border-b-0 transition-colors ${
                                 subcategory.id === currentSubcategoryId
                                   ? "text-amber-600 bg-amber-50/50"

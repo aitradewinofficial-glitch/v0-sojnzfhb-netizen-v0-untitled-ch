@@ -28,3 +28,14 @@ export function productHref(title: string | null | undefined, id: string, isEngl
   const slug = slugify(title) || id
   return isEnglish ? `/en/product/${slug}` : `/product/${slug}`
 }
+
+/**
+ * Builds a subcategory page URL from its title, falling back to the id when the
+ * title produces an empty slug. Mirrors productHref so subcategory URLs use a
+ * human-readable slug (e.g. "/subcategory/микро-pop-up-6-8-mm") instead of a
+ * raw Document ID. The normalization MUST stay in sync with getSubcategoryById.
+ */
+export function subcategoryHref(title: string | null | undefined, id: string, isEnglish = false): string {
+  const slug = slugify(title) || id
+  return isEnglish ? `/en/subcategory/${slug}` : `/subcategory/${slug}`
+}

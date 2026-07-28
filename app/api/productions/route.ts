@@ -68,7 +68,8 @@ export async function GET(request: NextRequest) {
           e.name as employee_name,
           pl.name as production_line_name,
           pe.name as partner_name,
-          COALESCE(np.title, pp.name, p.product_name) as product_name
+          COALESCE(np.title, pp.name, p.product_name) as product_name,
+          p.product_name as product_key
         FROM productions p
         JOIN employees e ON p.employee_id = e.id
         JOIN production_lines pl ON p.production_line_id = pl.id
@@ -94,7 +95,8 @@ export async function GET(request: NextRequest) {
           e.name as employee_name,
           pl.name as production_line_name,
           pe.name as partner_name,
-          COALESCE(np.title, pp.name, p.product_name) as product_name
+          COALESCE(np.title, pp.name, p.product_name) as product_name,
+          p.product_name as product_key
         FROM productions p
         JOIN employees e ON p.employee_id = e.id
         JOIN production_lines pl ON p.production_line_id = pl.id

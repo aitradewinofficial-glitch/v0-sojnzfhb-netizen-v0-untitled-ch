@@ -119,13 +119,31 @@ export function SiteHeader({
   }, [])
 
   const setTranslateCookie = (target: "en" | "bg") => {
-    // Set the googtrans cookie on every relevant domain/path scope
+    // "/bg/bg" = translate Bulgarian->Bulgarian, i.e. no translation.
     const value = target === "en" ? "/bg/en" : "/bg/bg"
-    const hostname = window.location.hostname
     const expires = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toUTCString()
-    document.cookie = `googtrans=${value};expires=${expires};path=/`
-    document.cookie = `googtrans=${value};expires=${expires};path=/;domain=${hostname}`
-    document.cookie = `googtrans=${value};expires=${expires};path=/;domain=.${hostname}`
+    const hostname = window.location.hostname
+
+    // Google Translate writes the googtrans cookie to the REGISTRABLE domain
+    // (e.g. ".madiks.bg"), not the exact current hostname (e.g. "www.madiks.bg").
+    // If we only reset the exact hostname scope, the residual cookie on the
+    // parent domain survives and Google re-translates back to English after the
+    // reload (the "flash BG then revert" bug). So overwrite EVERY domain scope
+    // derived from the hostname to guarantee we clobber whichever one Google used.
+    const domains = new Set<string>([""]) // host-only cookie (no domain attribute)
+    const parts = hostname.split(".")
+    for (let i = 0; i < parts.length - 1; i++) {
+      const d = parts.slice(i).join(".")
+      domains.add(d)
+      domains.add(`.${d}`)
+    }
+    domains.add(hostname)
+    domains.add(`.${hostname}`)
+
+    for (const d of domains) {
+      const domainAttr = d ? `;domain=${d}` : ""
+      document.cookie = `googtrans=${value};expires=${expires};path=/${domainAttr}`
+    }
   }
 
   const handleLanguageChange = (locale: string) => {

@@ -130,15 +130,12 @@ export function SiteHeader({
 
   const handleLanguageChange = (locale: string) => {
     const target = locale === "en" ? "en" : "bg"
-    if (target === "bg") {
-      // Clear translation back to original Bulgarian
-      const hostname = window.location.hostname
-      document.cookie = "googtrans=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/"
-      document.cookie = `googtrans=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=${hostname}`
-      document.cookie = `googtrans=;expires=Thu, 01 Jan 1970 00:00:00 GMT;path=/;domain=.${hostname}`
-    } else {
-      setTranslateCookie("en")
-    }
+    // Always OVERWRITE the googtrans cookie on every scope instead of deleting it.
+    // Deleting is unreliable (each domain/path scope is a separate cookie), so a
+    // residual "/bg/en" cookie would survive and Google Translate would re-translate
+    // the page back to English after the reload (the "flash BG then revert" bug).
+    // Writing "/bg/bg" means translate BG->BG, i.e. no translation, deterministically.
+    setTranslateCookie(target)
     setShowLanguageDropdown(false)
     window.location.reload()
   }

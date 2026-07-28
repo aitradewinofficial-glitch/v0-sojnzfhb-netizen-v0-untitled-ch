@@ -30,6 +30,7 @@ interface Production {
   id: number
   employee_id: number
   product_name: string
+  product_key?: string
   quantity: number
   production_date: string
   notes: string

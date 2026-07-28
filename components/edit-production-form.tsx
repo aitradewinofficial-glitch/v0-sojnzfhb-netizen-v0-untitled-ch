@@ -16,6 +16,7 @@ interface Production {
   id: number
   employee_id: number
   product_name: string
+  product_key?: string
   production_line_id?: number
   partner_employee_id?: number
   quantity: number
@@ -53,7 +54,13 @@ export function EditProductionForm({ production, onClose, onSuccess }: EditProdu
   const [sortAscending, setSortAscending] = useState(true)
   const [formData, setFormData] = useState({
     productionLineId: production.production_line_id?.toString() || "",
-    productName: production.product_name,
+    // Pre-select the dropdown by the product KEY (production-<id>), never the
+    // display name. Falls back to product_name only for legacy rows.
+    productName:
+      production.product_key &&
+      (production.product_key.startsWith("production-") || production.product_key.startsWith("online-"))
+        ? production.product_key
+        : "",
     partnerEmployeeId: production.partner_employee_id?.toString() || "",
     quantity: production.quantity.toString(),
     productionDate: production.production_date.split("T")[0],

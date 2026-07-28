@@ -28,10 +28,34 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
 
+    // Resolve product_name to a valid key (production-<id> / online-<id>).
+    // The statistics only count records with these prefixes, so we must never
+    // store a raw display name here. If the incoming value isn't a valid key,
+    // try to map it by name; otherwise keep the existing key.
+    let resolvedProductName = productName
+    if (
+      typeof productName !== "string" ||
+      (!productName.startsWith("production-") && !productName.startsWith("online-"))
+    ) {
+      const matched = await sql`
+        SELECT CONCAT('production-', id::text) AS product_key
+        FROM production_products
+        WHERE name = ${productName}
+          AND production_line_id = ${productionLineId}
+        LIMIT 1
+      `
+      if (matched.length > 0) {
+        resolvedProductName = matched[0].product_key
+      } else {
+        const current = await sql`SELECT product_name FROM productions WHERE id = ${productionId}`
+        resolvedProductName = current[0]?.product_name ?? productName
+      }
+    }
+
     await sql`
       UPDATE productions 
       SET 
-        product_name = ${productName},
+        product_name = ${resolvedProductName},
         production_line_id = ${productionLineId},
         partner_employee_id = ${partnerEmployeeId},
         quantity = ${quantity},

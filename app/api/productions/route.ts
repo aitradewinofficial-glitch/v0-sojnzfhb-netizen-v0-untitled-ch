@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
+import { applyMaterialUsage } from "@/lib/supply"
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,6 +40,10 @@ export async function POST(request: NextRequest) {
     `
 
     console.log("[v0] Production created successfully:", result[0])
+
+    // Автоматично намаляване на наличностите за изразходените материали
+    await applyMaterialUsage(productId, Number(quantity))
+
     return NextResponse.json({ success: true, id: result[0].id })
   } catch (error) {
     console.error("[v0] Error creating production:", error)

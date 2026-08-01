@@ -3,6 +3,7 @@
 import Link from "next/link"
 import Image from "next/image"
 import { usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
@@ -21,10 +22,34 @@ import {
   Star,
   Newspaper,
   Search,
+  Boxes,
 } from "lucide-react"
 
 export function Sidebar({ items }: { items: any[] }) {
   const pathname = usePathname()
+  const [lowStockCount, setLowStockCount] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    const loadLowStock = async () => {
+      try {
+        const res = await fetch("/api/admin/supply/materials")
+        if (!res.ok) return
+        const materials = await res.json()
+        if (cancelled || !Array.isArray(materials)) return
+        const count = materials.filter((m: any) => Number(m.stock) < Number(m.min_quantity)).length
+        setLowStockCount(count)
+      } catch {
+        // тихо игнорираме
+      }
+    }
+    loadLowStock()
+    const interval = setInterval(loadLowStock, 60000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [])
 
   const isActive = (path: string) => {
     return pathname === path || pathname.startsWith(`${path}/`)
@@ -90,6 +115,13 @@ export function Sidebar({ items }: { items: any[] }) {
       href: "/admin-panel/production",
       icon: Factory,
       active: isActive("/admin-panel/production"),
+    },
+    {
+      title: "Снабдяване",
+      href: "/admin-panel/supply",
+      icon: Boxes,
+      active: isActive("/admin-panel/supply"),
+      badge: lowStockCount,
     },
     {
       title: "Новини",
@@ -163,7 +195,12 @@ export function Sidebar({ items }: { items: any[] }) {
               )}
             >
               <item.icon className={cn("h-4 w-4 shrink-0", item.active ? "text-white" : "text-orange-400")} />
-              <span>{item.title}</span>
+              <span className="flex-1">{item.title}</span>
+              {item.badge > 0 && (
+                <span className="ml-auto inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white">
+                  {item.badge}
+                </span>
+              )}
             </Link>
           ))}
         </div>

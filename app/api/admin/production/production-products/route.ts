@@ -40,9 +40,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Sales value cannot be negative" }, { status: 400 })
     }
 
+    // Рецепта: материал (или NULL) + количество на 1 бр. продукт
+    const matId = (v: unknown) => (v === undefined || v === null || v === "" || v === "none" ? null : Number(v))
+    const qty = (v: unknown) => (Number.isNaN(Number(v)) ? 0 : Number(v))
+
     const result = await sql`
-      INSERT INTO production_products (name, production_line_id, daily_target, sales_value)
-      VALUES (${name.trim()}, ${Number(production_line_id)}, ${Number(daily_target)}, ${Number(sales_value || 0)})
+      INSERT INTO production_products (
+        name, production_line_id, daily_target, sales_value,
+        label1_material_id, label1_qty,
+        label2_material_id, label2_qty,
+        sticker_material_id, sticker_qty,
+        packaging_material_id, packaging_qty,
+        box_material_id, box_qty
+      )
+      VALUES (
+        ${name.trim()}, ${Number(production_line_id)}, ${Number(daily_target)}, ${Number(sales_value || 0)},
+        ${matId(body.label1_material_id)}, ${qty(body.label1_qty)},
+        ${matId(body.label2_material_id)}, ${qty(body.label2_qty)},
+        ${matId(body.sticker_material_id)}, ${qty(body.sticker_qty)},
+        ${matId(body.packaging_material_id)}, ${qty(body.packaging_qty)},
+        ${matId(body.box_material_id)}, ${qty(body.box_qty)}
+      )
       RETURNING *
     `
 

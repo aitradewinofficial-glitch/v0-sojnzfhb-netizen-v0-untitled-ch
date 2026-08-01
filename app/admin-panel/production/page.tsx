@@ -64,6 +64,57 @@ interface ProductionProduct {
   active: boolean
   created_at: string
   updated_at: string
+  label1_material_id?: number | null
+  label1_qty?: number
+  label2_material_id?: number | null
+  label2_qty?: number
+  sticker_material_id?: number | null
+  sticker_qty?: number
+  packaging_material_id?: number | null
+  packaging_qty?: number
+  box_material_id?: number | null
+  box_qty?: number
+}
+
+interface SupplyMaterial {
+  id: number
+  category: string
+  name: string
+  stock: number
+  min_quantity: number
+}
+
+// Слотовете за рецепта според заданието
+const RECIPE_FIELDS = [
+  { key: "label1", label: "Етикет 1" },
+  { key: "label2", label: "Етикет 2" },
+  { key: "sticker", label: "Стикер" },
+  { key: "packaging", label: "Опаковка" },
+  { key: "box", label: "Кашон" },
+] as const
+
+const emptyRecipe: Record<string, string | number> = {
+  label1_material_id: "none",
+  label1_qty: 0,
+  label2_material_id: "none",
+  label2_qty: 0,
+  sticker_material_id: "none",
+  sticker_qty: 0,
+  packaging_material_id: "none",
+  packaging_qty: 0,
+  box_material_id: "none",
+  box_qty: 0,
+}
+
+// Превръща стойностите от формата в payload за API ("none" -> null)
+function buildRecipePayload(obj: Record<string, any>) {
+  const payload: Record<string, number | null> = {}
+  for (const field of RECIPE_FIELDS) {
+    const matVal = obj[`${field.key}_material_id`]
+    payload[`${field.key}_material_id`] = matVal && matVal !== "none" ? Number(matVal) : null
+    payload[`${field.key}_qty`] = Number(obj[`${field.key}_qty`] || 0)
+  }
+  return payload
 }
 
 interface SalaryLevel {
@@ -106,7 +157,9 @@ export default function ProductionAdminPage() {
     production_line_id: "",
     daily_target: 0,
     sales_value: 0,
+    ...emptyRecipe,
   })
+  const [supplyMaterials, setSupplyMaterials] = useState<SupplyMaterial[]>([])
   const [newSalaryLevel, setNewSalaryLevel] = useState({ level_name: "", salary_per_day: 0 })
 
   const [editingEmployee, setEditingEmployee] = useState<{ id: number; name: string; salary_level_id: string } | null>(
@@ -121,13 +174,16 @@ export default function ProductionAdminPage() {
   } | null>(null)
   const [editProductionLineDialogOpen, setEditProductionLineDialogOpen] = useState(false)
 
-  const [editingProductionProduct, setEditingProductionProduct] = useState<{
-    id: number
-    name: string
-    production_line_id: string
-    daily_target: number
-    sales_value: number
-  } | null>(null)
+  const [editingProductionProduct, setEditingProductionProduct] = useState<
+    | ({
+        id: number
+        name: string
+        production_line_id: string
+        daily_target: number
+        sales_value: number
+      } & Record<string, string | number>)
+    | null
+  >(null)
   const [editProductionProductDialogOpen, setEditProductionProductDialogOpen] = useState(false)
 
   const [employeeDialogOpen, setEmployeeDialogOpen] = useState(false)
@@ -163,15 +219,20 @@ export default function ProductionAdminPage() {
     try {
       setLoading(true)
 
-      const [employeesRes, productionLinesRes, productsRes, productionProductsRes, salaryLevelsRes] = await Promise.all(
-        [
+      const [employeesRes, productionLinesRes, productsRes, productionProductsRes, salaryLevelsRes, materialsRes] =
+        await Promise.all([
           fetch("/api/admin/production/employees"),
           fetch("/api/admin/production/production-lines"),
           fetch("/api/admin/products"),
           fetch("/api/admin/production/production-products"),
           fetch("/api/admin/salary-levels"),
-        ],
-      )
+          fetch("/api/admin/supply/materials"),
+        ])
+
+      if (materialsRes.ok) {
+        const materialsData = await materialsRes.json()
+        setSupplyMaterials(Array.isArray(materialsData) ? materialsData : [])
+      }
 
       if (employeesRes.ok) {
         const employeesData = await employeesRes.json()
@@ -347,6 +408,16 @@ export default function ProductionAdminPage() {
       production_line_id: product.production_line_id.toString(),
       daily_target: product.daily_target,
       sales_value: product.sales_value || 0,
+      label1_material_id: product.label1_material_id ? product.label1_material_id.toString() : "none",
+      label1_qty: Number(product.label1_qty || 0),
+      label2_material_id: product.label2_material_id ? product.label2_material_id.toString() : "none",
+      label2_qty: Number(product.label2_qty || 0),
+      sticker_material_id: product.sticker_material_id ? product.sticker_material_id.toString() : "none",
+      sticker_qty: Number(product.sticker_qty || 0),
+      packaging_material_id: product.packaging_material_id ? product.packaging_material_id.toString() : "none",
+      packaging_qty: Number(product.packaging_qty || 0),
+      box_material_id: product.box_material_id ? product.box_material_id.toString() : "none",
+      box_qty: Number(product.box_qty || 0),
     })
     setEditProductionProductDialogOpen(true)
   }
@@ -520,6 +591,7 @@ export default function ProductionAdminPage() {
           production_line_id: Number(newProductionProduct.production_line_id),
           daily_target: Number(newProductionProduct.daily_target),
           sales_value: Number(newProductionProduct.sales_value),
+          ...buildRecipePayload(newProductionProduct),
         }),
       })
 
@@ -528,7 +600,7 @@ export default function ProductionAdminPage() {
           title: "Успех",
           description: "Производственият продукт е добавен успешно",
         })
-        setNewProductionProduct({ name: "", production_line_id: "", daily_target: 0, sales_value: 0 })
+        setNewProductionProduct({ name: "", production_line_id: "", daily_target: 0, sales_value: 0, ...emptyRecipe })
         setProductionProductDialogOpen(false)
         fetchData()
       } else {
@@ -591,6 +663,7 @@ export default function ProductionAdminPage() {
           production_line_id: Number(editingProductionProduct.production_line_id),
           daily_target: Number(editingProductionProduct.daily_target),
           sales_value: Number(editingProductionProduct.sales_value),
+          ...buildRecipePayload(editingProductionProduct),
         }),
       })
 
@@ -894,6 +967,51 @@ export default function ProductionAdminPage() {
     })
   }
 
+  const renderRecipeFields = (state: Record<string, any>, setState: (v: any) => void) => (
+    <div className="border-t pt-4 mt-2">
+      <p className="text-sm font-semibold mb-1">Разход на материали (за 1 бр.)</p>
+      <p className="text-xs text-muted-foreground mb-3">
+        Изберете материал от Снабдяване и колко се харчи за изработката на едно изделие
+      </p>
+      <div className="space-y-3">
+        {RECIPE_FIELDS.map((field) => (
+          <div key={field.key} className="grid grid-cols-[1fr_90px] gap-2 items-end">
+            <div>
+              <Label className="text-xs">{field.label}</Label>
+              <Select
+                value={String(state[`${field.key}_material_id`] ?? "none")}
+                onValueChange={(value) => setState({ ...state, [`${field.key}_material_id`]: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Без материал" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Без материал</SelectItem>
+                  {supplyMaterials.map((m) => (
+                    <SelectItem key={m.id} value={m.id.toString()}>
+                      {m.name} ({m.category})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs">Бр.</Label>
+              <Input
+                type="number"
+                min="0"
+                step="0.01"
+                value={state[`${field.key}_qty`] ?? 0}
+                onChange={(e) => setState({ ...state, [`${field.key}_qty`]: Number(e.target.value) })}
+                disabled={!state[`${field.key}_material_id`] || state[`${field.key}_material_id`] === "none"}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+
   return (
     <div className="container py-10">
       <h1 className="text-3xl font-bold mb-8">Управление на производството</h1>
@@ -1125,10 +1243,10 @@ export default function ProductionAdminPage() {
       </Dialog>
 
       <Dialog open={editProductionProductDialogOpen} onOpenChange={setEditProductionProductDialogOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Редактирай производствен продукт</DialogTitle>
-            <DialogDescription>Променете данните на производствения продукт</DialogDescription>
+            <DialogDescription>Променете данните на производстве��ия продукт</DialogDescription>
           </DialogHeader>
           {editingProductionProduct && (
             <div className="space-y-4">
@@ -1190,6 +1308,7 @@ export default function ProductionAdminPage() {
                   placeholder="0.00"
                 />
               </div>
+              {renderRecipeFields(editingProductionProduct, setEditingProductionProduct)}
               <div className="flex justify-end space-x-2">
                 <Button variant="outline" onClick={() => setEditProductionProductDialogOpen(false)}>
                   Отказ
@@ -1421,7 +1540,7 @@ export default function ProductionAdminPage() {
                   Добави продукт
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Добави нов производствен продукт</DialogTitle>
                   <DialogDescription>Въведете данните за новия производствен продукт</DialogDescription>
@@ -1485,6 +1604,7 @@ export default function ProductionAdminPage() {
                       placeholder="0.00"
                     />
                   </div>
+                  {renderRecipeFields(newProductionProduct, setNewProductionProduct)}
                   <div className="flex justify-end space-x-2">
                     <Button variant="outline" onClick={() => setProductionProductDialogOpen(false)}>
                       Отказ

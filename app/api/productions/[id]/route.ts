@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
+import { applyMaterialUsage } from "@/lib/supply"
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -17,7 +18,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
 
     // Check if the production belongs to the current employee
     const existingProduction = await sql`
-      SELECT employee_id FROM productions WHERE id = ${productionId}
+      SELECT employee_id, product_name, quantity FROM productions WHERE id = ${productionId}
     `
 
     if (existingProduction.length === 0) {
@@ -27,6 +28,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (existingProduction[0].employee_id.toString() !== currentEmployee) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 })
     }
+
+    const oldProductKey = existingProduction[0].product_name
+    const oldQuantity = Number(existingProduction[0].quantity)
 
     // Resolve product_name to a valid key (production-<id> / online-<id>).
     // The statistics only count records with these prefixes, so we must never
@@ -64,6 +68,10 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         updated_at = NOW()
       WHERE id = ${productionId}
     `
+
+    // Върни старото изразходване и приложи новото според рецептата
+    await applyMaterialUsage(oldProductKey, -oldQuantity)
+    await applyMaterialUsage(resolvedProductName, Number(quantity))
 
     return NextResponse.json({ success: true })
   } catch (error) {
@@ -114,7 +122,7 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     // Check if the production belongs to the current employee
     const existingProduction = await sql`
-      SELECT employee_id FROM productions WHERE id = ${productionId}
+      SELECT employee_id, product_name, quantity FROM productions WHERE id = ${productionId}
     `
 
     if (existingProduction.length === 0) {
@@ -128,6 +136,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     await sql`
       DELETE FROM productions WHERE id = ${productionId}
     `
+
+    // Върни изразходените материали обратно в наличност
+    await applyMaterialUsage(existingProduction[0].product_name, -Number(existingProduction[0].quantity))
 
     return NextResponse.json({ success: true })
   } catch (error) {

@@ -85,12 +85,17 @@ interface SupplyMaterial {
 }
 
 // Слотовете за рецепта според заданието
+// categories -> кои категории материали от Снабдяване да се показват в конкретния dropdown
 const RECIPE_FIELDS = [
-  { key: "label1", label: "Етикет 1" },
-  { key: "label2", label: "Етикет 2" },
-  { key: "sticker", label: "Стикер" },
-  { key: "packaging", label: "Опаковка" },
-  { key: "box", label: "Кашон" },
+  { key: "label1", label: "Етикет 1", categories: ["Етикети"] },
+  { key: "label2", label: "Етикет 2", categories: ["Етикети"] },
+  { key: "sticker", label: "Стикер", categories: ["Етикети"] },
+  {
+    key: "packaging",
+    label: "Опаковка",
+    categories: ["Седящи пликове", "Вакуум пликове", "Фолио", "Буркан", "Бутилка"],
+  },
+  { key: "box", label: "Кашон", categories: ["Кашони"] },
 ] as const
 
 const emptyRecipe: Record<string, string | number> = {
@@ -987,11 +992,13 @@ export default function ProductionAdminPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">Без материал</SelectItem>
-                  {supplyMaterials.map((m) => (
-                    <SelectItem key={m.id} value={m.id.toString()}>
-                      {m.name} ({m.category})
-                    </SelectItem>
-                  ))}
+                  {supplyMaterials
+                    .filter((m) => (field.categories as readonly string[]).includes(m.category))
+                    .map((m) => (
+                      <SelectItem key={m.id} value={m.id.toString()}>
+                        {m.name} ({m.category})
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>

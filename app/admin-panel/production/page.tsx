@@ -152,6 +152,7 @@ export default function ProductionAdminPage() {
   const [loading, setLoading] = useState(true)
 
   const [productionProductSortOrder, setProductionProductSortOrder] = useState<"asc" | "desc">("asc")
+  const [productionProductLineFilter, setProductionProductLineFilter] = useState<string>("all")
 
   // Initialize salary_level_id for newEmployee
   const [newEmployee, setNewEmployee] = useState({ name: "", salary_level_id: "" })
@@ -785,7 +786,7 @@ export default function ProductionAdminPage() {
       if (response.ok) {
         toast({
           title: "Успех",
-          description: "Производствената линия е изтрита успешно",
+          description: "Производствената линия е изтрита успешн��",
         })
         fetchData()
       } else {
@@ -954,7 +955,12 @@ export default function ProductionAdminPage() {
   }
 
   const getSortedProductionProducts = () => {
-    return [...productionProducts].sort((a, b) => {
+    const filtered =
+      productionProductLineFilter === "all"
+        ? productionProducts
+        : productionProducts.filter((p) => p.production_line_id.toString() === productionProductLineFilter)
+
+    return [...filtered].sort((a, b) => {
       const nameA = a.name.toLowerCase()
       const nameB = b.name.toLowerCase()
 
@@ -1137,7 +1143,7 @@ export default function ProductionAdminPage() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={employee.active ? "default" : "secondary"}>
-                        {employee.active ? "Активен" : "Неактивен"}
+                        {employee.active ? "Активен" : "Неактиве��"}
                       </Badge>
                     </TableCell>
                     <TableCell>{new Date(employee.created_at).toLocaleDateString("bg-BG")}</TableCell>
@@ -1636,7 +1642,30 @@ export default function ProductionAdminPage() {
             </div>
           ) : (
             <>
-              <div className="flex justify-end mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div className="flex items-center gap-2">
+                  <Label htmlFor="production-line-filter" className="text-sm text-muted-foreground whitespace-nowrap">
+                    Производствена линия
+                  </Label>
+                  <Select value={productionProductLineFilter} onValueChange={setProductionProductLineFilter}>
+                    <SelectTrigger id="production-line-filter" className="w-[220px]">
+                      <SelectValue placeholder="Всички линии" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Всички линии</SelectItem>
+                      {productionLines.map((line) => (
+                        <SelectItem key={line.id} value={line.id.toString()}>
+                          {line.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {productionProductLineFilter !== "all" && (
+                    <Button variant="ghost" size="sm" onClick={() => setProductionProductLineFilter("all")}>
+                      Изчисти
+                    </Button>
+                  )}
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
@@ -1649,7 +1678,7 @@ export default function ProductionAdminPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Име</TableHead>
-                    <TableHead>Производствена линия</TableHead>
+                    <TableHead>Произво��ствена линия</TableHead>
                     <TableHead>Дневна цел</TableHead>
                     <TableHead>Продажна стойност</TableHead>
                     <TableHead>Статус</TableHead>
@@ -1658,7 +1687,14 @@ export default function ProductionAdminPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {getSortedProductionProducts().map((product) => (
+                  {getSortedProductionProducts().length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                        Няма продукти за избраната производствена линия.
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    getSortedProductionProducts().map((product) => (
                     <TableRow key={product.id}>
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell>
@@ -1695,7 +1731,8 @@ export default function ProductionAdminPage() {
                         </div>
                       </TableCell>
                     </TableRow>
-                  ))}
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </>

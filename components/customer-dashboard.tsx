@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import { Fish } from "lucide-react"
 import Image from "next/image"
 
 export type OrderItem = {
@@ -26,9 +27,10 @@ export type Order = {
 interface CustomerDashboardProps {
   user: User
   orders: Order[]
+  fishermenCount?: number
 }
 
-export function CustomerDashboard({ user, orders = [] }: CustomerDashboardProps) {
+export function CustomerDashboard({ user, orders = [], fishermenCount = 0 }: CustomerDashboardProps) {
   const formatDate = (dateString: string) => {
     if (!dateString) return "N/A"
     try {
@@ -93,6 +95,24 @@ export function CustomerDashboard({ user, orders = [] }: CustomerDashboardProps)
   return (
     <div className="container mx-auto py-8 px-4 md:px-6">
       <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="lg:col-span-3 border-0 bg-gradient-to-r from-orange-500 to-amber-500 text-white shadow-md">
+          <CardContent className="flex flex-col items-start justify-between gap-4 p-6 sm:flex-row sm:items-center">
+            <div className="flex items-center gap-4">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/20">
+                <Fish className="h-7 w-7" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-white/80">Регистрирани рибари от вашия магазин</p>
+                <p className="text-4xl font-extrabold leading-none">{fishermenCount}</p>
+              </div>
+            </div>
+            <p className="max-w-md text-pretty text-sm text-white/90">
+              Всеки рибар, който сканира вашия QR код и се регистрира, се брои тук. Колкото повече регистрации, толкова
+              по-близо сте до бонуса!
+            </p>
+          </CardContent>
+        </Card>
+
         <Card className="lg:col-span-1 bg-white border-gray-200 shadow-sm">
           <CardHeader>
             <CardTitle className="text-xl text-gray-900">Информация за акаунта</CardTitle>

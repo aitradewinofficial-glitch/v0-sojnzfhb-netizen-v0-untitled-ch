@@ -389,6 +389,28 @@ LIMIT 1
   }
 }
 
+// Брой регистрирани рибари за магазина на даден клиент (по телефон)
+export async function getFishermenCountByPhone(phone: string): Promise<number> {
+  if (!dbInitialized || !phone) return 0
+  try {
+    const result: any[] = await sql.query(
+      `SELECT COUNT(*)::int AS count
+       FROM fishermen f
+       JOIN customers c ON f.customer_id = c."Document ID"
+       WHERE c.phone = $1`,
+      [phone],
+    )
+    if (Array.isArray(result) && result.length > 0) {
+      return Number(result[0].count) || 0
+    }
+    return 0
+  } catch (error) {
+    // Таблицата може все още да не съществува – връщаме 0 без да чупим таблото.
+    console.log("LIB/DB.TS: getFishermenCountByPhone - could not count (table may not exist yet).")
+    return 0
+  }
+}
+
 // Orders
 // Тази функция вече е актуализирана да приема `identifier` (имейл или телефон)
 // и да търси по `customer_email` ИЛИ `customer_phone` в `simple_orders`

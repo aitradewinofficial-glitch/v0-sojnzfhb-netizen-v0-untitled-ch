@@ -33,10 +33,17 @@ export default function AddProductPage() {
     title_en: "",
     description: "",
     description_en: "",
+    sku: "",
+    barcode: "",
     price: "",
     wholesalerprice: "",
     retailerprice: "",
     europe_price: "",
+    price_eur: "",
+    wholesalerprice_eur: "",
+    retailerprice_eur: "",
+    europe_price_eur: "",
+    active: true,
     cateid: "",
     subcateid: "",
     photourl: "",
@@ -228,10 +235,17 @@ export default function AddProductPage() {
           title_en: "",
           description: "",
           description_en: "",
+          sku: "",
+          barcode: "",
           price: "",
           wholesalerprice: "",
           retailerprice: "",
           europe_price: "",
+          price_eur: "",
+          wholesalerprice_eur: "",
+          retailerprice_eur: "",
+          europe_price_eur: "",
+          active: true,
           cateid: "",
           subcateid: "",
           photourl: "",
@@ -361,6 +375,34 @@ export default function AddProductPage() {
               </div>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="sku" className="text-sm font-medium">
+                  SKU
+                </label>
+                <Input
+                  id="sku"
+                  name="sku"
+                  value={formData.sku}
+                  onChange={handleChange}
+                  className="bg-white border-gray-300"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="barcode" className="text-sm font-medium">
+                  Barcode
+                </label>
+                <Input
+                  id="barcode"
+                  name="barcode"
+                  value={formData.barcode}
+                  onChange={handleChange}
+                  className="bg-white border-gray-300"
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <label htmlFor="price" className="text-sm font-medium">
@@ -423,6 +465,85 @@ export default function AddProductPage() {
                   className="bg-white border-gray-300"
                 />
               </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="space-y-2">
+                <label htmlFor="price_eur" className="text-sm font-medium flex items-center">
+                  <span className="mr-1">€</span> Цена (EUR)
+                </label>
+                <Input
+                  id="price_eur"
+                  name="price_eur"
+                  type="number"
+                  step="0.01"
+                  value={formData.price_eur}
+                  onChange={handleChange}
+                  className="bg-white border-gray-300"
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="retailerprice_eur" className="text-sm font-medium flex items-center">
+                  <span className="mr-1">€</span> Цена на дребно (EUR)
+                </label>
+                <Input
+                  id="retailerprice_eur"
+                  name="retailerprice_eur"
+                  type="number"
+                  step="0.01"
+                  value={formData.retailerprice_eur}
+                  onChange={handleChange}
+                  className="bg-white border-gray-300"
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="wholesalerprice_eur" className="text-sm font-medium flex items-center">
+                  <span className="mr-1">€</span> Цена на едро (EUR)
+                </label>
+                <Input
+                  id="wholesalerprice_eur"
+                  name="wholesalerprice_eur"
+                  type="number"
+                  step="0.01"
+                  value={formData.wholesalerprice_eur}
+                  onChange={handleChange}
+                  className="bg-white border-gray-300"
+                  placeholder="0.00"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="europe_price_eur" className="text-sm font-medium flex items-center">
+                  <span className="mr-1">€</span> Цена за европейци (EUR)
+                </label>
+                <Input
+                  id="europe_price_eur"
+                  name="europe_price_eur"
+                  type="number"
+                  step="0.01"
+                  value={formData.europe_price_eur}
+                  onChange={handleChange}
+                  className="bg-white border-gray-300"
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="active"
+                checked={formData.active}
+                onChange={(e) => setFormData((prev) => ({ ...prev, active: e.target.checked }))}
+                className="h-4 w-4 rounded border-gray-300 text-cyan-600 focus:ring-cyan-500"
+              />
+              <label htmlFor="active" className="text-sm font-medium">
+                Активен продукт
+              </label>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

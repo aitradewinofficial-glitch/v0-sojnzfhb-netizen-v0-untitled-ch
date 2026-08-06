@@ -158,7 +158,7 @@ export default function UsersPage() {
 
       toast({
         title: "Успешно",
-        description: "Клиентът беше деактивиран успешно",
+        description: "Клиентът беше изтрит успешно",
       })
 
       // Презареждане на клиентите
@@ -459,12 +459,12 @@ export default function UsersPage() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="bg-white">
           <DialogHeader>
-            <DialogTitle>Потвърждение за деактивиране</DialogTitle>
+            <DialogTitle>Потвърждение за изтриване</DialogTitle>
             <DialogDescription>
-              Сигурни ли сте, че искате да деактивирате клиента{" "}
+              Сигурни ли сте, че искате да изтриете клиента{" "}
               <span className="font-semibold">{customerToDelete?.storename || customerToDelete?.companyname}</span>?
               <br />
-              Това действие няма да изтрие клиента, а само ще го деактивира.
+              Това действие ще изтрие клиента завинаги от базата данни и не може да бъде отменено.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -472,7 +472,7 @@ export default function UsersPage() {
               Отказ
             </Button>
             <Button variant="destructive" onClick={handleDeleteCustomer}>
-              Деактивирай
+              Изтрий
             </Button>
           </DialogFooter>
         </DialogContent>

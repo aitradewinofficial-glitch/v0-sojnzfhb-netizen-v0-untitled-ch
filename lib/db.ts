@@ -2255,3 +2255,35 @@ export async function deleteProductFAQ(faqId: string): Promise<boolean> {
     return false
   }
 }
+
+// Връща броя регистрирани рибари за конкретен магазин (клиент), намерен по Document ID или objectid
+export async function getFishermenCountForCustomer(customerIdentifiers: (string | null | undefined)[]): Promise<number> {
+  try {
+    const ids = customerIdentifiers.filter((v): v is string => Boolean(v && String(v).trim()))
+    if (ids.length === 0) return 0
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS fishermen (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        customer_id TEXT,
+        store_name TEXT,
+        agreed_terms BOOLEAN DEFAULT FALSE,
+        agreed_marketing BOOLEAN DEFAULT FALSE,
+        is_winner BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `
+
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(", ")
+    const result: any[] = await sql.query(
+      `SELECT COUNT(*)::int as count FROM fishermen WHERE customer_id IN (${placeholders})`,
+      ids,
+    )
+    return Array.isArray(result) && result.length > 0 ? Number(result[0].count) || 0 : 0
+  } catch (error) {
+    console.error("LIB/DB.TS: Error counting fishermen for customer:", error)
+    return 0
+  }
+}

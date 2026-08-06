@@ -23,6 +23,7 @@ import {
   Newspaper,
   Search,
   Boxes,
+  Fish,
 } from "lucide-react"
 
 export function Sidebar({ items }: { items: any[] }) {
@@ -91,6 +92,12 @@ export function Sidebar({ items }: { items: any[] }) {
       href: "/admin-panel/users/approval",
       icon: UserCheck,
       active: isActive("/admin-panel/users/approval"),
+    },
+    {
+      title: "Рибари",
+      href: "/admin-panel/fishermen",
+      icon: Fish,
+      active: isActive("/admin-panel/fishermen"),
     },
     {
       title: "Поръчки",

@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { toast } from "@/components/ui/use-toast"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { StoreQrButton, ExportQrButton } from "./store-qr"
 
 // Типове за клиенти
 interface Customer {
@@ -229,7 +230,7 @@ export default function UsersPage() {
       case "wholesaler":
         return "Търговец на едро"
       case "standard":
-        return "Стандартен клиент"
+        return "Стандартен клиен��"
       default:
         return type || "Неопределен"
     }
@@ -251,13 +252,16 @@ export default function UsersPage() {
               <CardTitle className="text-2xl font-bold text-gray-800">Управление на клиенти</CardTitle>
               <CardDescription className="text-gray-600">Управлявайте клиентите и техните акаунти</CardDescription>
             </div>
-            <Button
-              onClick={() => router.push("/admin-panel/users/add")}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              <UserPlus className="mr-2 h-4 w-4" />
-              Добави клиент
-            </Button>
+            <div className="flex items-center gap-2">
+              <ExportQrButton />
+              <Button
+                onClick={() => router.push("/admin-panel/users/add")}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <UserPlus className="mr-2 h-4 w-4" />
+                Добави клиент
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-6">
@@ -364,6 +368,10 @@ export default function UsersPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
+                          <StoreQrButton
+                            storeId={customer.id}
+                            storeName={customer.storename || customer.companyname || "Магазин"}
+                          />
                           <Button
                             variant="outline"
                             size="sm"

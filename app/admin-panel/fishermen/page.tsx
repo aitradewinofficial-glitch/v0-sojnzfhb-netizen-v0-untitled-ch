@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { Fish, Search, RefreshCw, Trophy, Trash2, Store, Users, Sparkles } from "lucide-react"
+import { Fish, Search, RefreshCw, Trophy, Trash2, Store, Users } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -9,13 +9,6 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog"
 import { toast } from "@/components/ui/use-toast"
 
 interface Fisherman {
@@ -169,6 +162,24 @@ export default function FishermenPage() {
 
   const totalRegistered = storeCounts.reduce((acc, s) => acc + s.count, 0)
   const winnersCount = fishermen.filter((f) => f.isWinner).length
+
+  // Имена за скролващата лента по време на теглене
+  const marqueeNames =
+    fishermen.length > 0 ? fishermen.map((f) => f.name).filter(Boolean) : ["MADIX", "ТОМБОЛА", "РИБАРИ"]
+
+  // Конфети за екрана с печеливш (генерира се веднъж)
+  const confettiPieces = useRef(
+    Array.from({ length: 60 }, () => {
+      const palette = ["#f97316", "#facc15", "#ffffff", "#22c55e", "#ef4444"]
+      return {
+        left: Math.random() * 100,
+        size: `${8 + Math.random() * 12}px`,
+        color: palette[Math.floor(Math.random() * palette.length)],
+        delay: Math.random() * 2,
+        duration: 2.5 + Math.random() * 2.5,
+      }
+    }),
+  ).current
 
   return (
     <div className="container mx-auto p-4">
@@ -361,52 +372,161 @@ export default function FishermenPage() {
         </CardContent>
       </Card>
 
-      {/* Диалог за теглене на печеливш */}
-      <Dialog open={drawOpen} onOpenChange={(o) => !drawing && setDrawOpen(o)}>
-        <DialogContent className="bg-white sm:max-w-lg" onInteractOutside={(e) => drawing && e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Trophy className="h-5 w-5 text-amber-500" />
-              Теглене на печеливш
-            </DialogTitle>
-            <DialogDescription>
-              {selected.size > 0
-                ? "Тегли се измежду избраните рибари."
-                : "Тегли се измежду всички показани рибари."}
-            </DialogDescription>
-          </DialogHeader>
+      {/* Теглене на печеливш – цял екран, брутален дизайн */}
+      {drawOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex flex-col items-center justify-center overflow-hidden bg-[#0a0a0a] font-sans"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Теглене на печеливш"
+        >
+          <style>{`
+            @keyframes reel-scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+            @keyframes confetti-fall {
+              0% { transform: translateY(-120vh) rotate(0deg); opacity: 1; }
+              100% { transform: translateY(120vh) rotate(720deg); opacity: 1; }
+            }
+            @keyframes brutal-shake {
+              0%,100% { transform: translate(0,0) rotate(-1deg); }
+              25% { transform: translate(-6px,4px) rotate(1.5deg); }
+              50% { transform: translate(5px,-5px) rotate(-1.5deg); }
+              75% { transform: translate(-4px,-3px) rotate(1deg); }
+            }
+            @keyframes winner-pop {
+              0% { transform: scale(0.4) rotate(-6deg); opacity: 0; }
+              60% { transform: scale(1.08) rotate(2deg); opacity: 1; }
+              100% { transform: scale(1) rotate(-2deg); opacity: 1; }
+            }
+            @keyframes blink { 0%,49% { opacity: 1; } 50%,100% { opacity: 0.15; } }
+          `}</style>
 
-          <div className="flex flex-col items-center justify-center gap-4 py-8">
-            {drawing ? (
-              <>
-                <Sparkles className="h-10 w-10 animate-pulse text-amber-500" />
-                <div className="w-full rounded-xl bg-gradient-to-r from-orange-100 to-amber-100 px-6 py-8 text-center">
-                  <p className="animate-pulse text-3xl font-extrabold text-orange-700">{rollingName || "..."}</p>
+          {/* Диагонални райета на фона */}
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.07]"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(45deg,#fff 0,#fff 3px,transparent 3px,transparent 26px)",
+            }}
+          />
+          {/* Ъглов блок с етикет */}
+          <div className="absolute left-0 top-0 border-b-4 border-r-4 border-[#f97316] bg-[#f97316] px-5 py-2 sm:px-8 sm:py-3">
+            <span className="text-lg font-black uppercase tracking-[0.2em] text-black sm:text-2xl">
+              MADIX × ТОМБОЛА
+            </span>
+          </div>
+
+          {/* Затваряне (само когато не тегли) */}
+          {!drawing && (
+            <button
+              onClick={() => setDrawOpen(false)}
+              className="absolute right-5 top-5 flex h-12 w-12 items-center justify-center border-4 border-white bg-black text-2xl font-black text-white transition-transform hover:-translate-y-1 hover:bg-[#f97316] hover:text-black sm:right-8 sm:top-8"
+              aria-label="Затвори"
+            >
+              ✕
+            </button>
+          )}
+
+          {drawing ? (
+            <div className="relative z-10 flex w-full flex-col items-center px-4">
+              <p className="mb-8 text-2xl font-black uppercase tracking-[0.3em] text-[#f97316] sm:text-4xl">
+                Теглене на печеливш
+              </p>
+
+              {/* Гигантско разбъркващо се име */}
+              <div
+                className="w-full max-w-5xl border-8 border-[#f97316] bg-white px-6 py-10 text-center shadow-[16px_16px_0_0_#f97316] sm:py-16"
+                style={{ animation: "brutal-shake 0.35s infinite" }}
+              >
+                <p className="truncate text-[clamp(2.5rem,12vw,9rem)] font-black uppercase leading-none tracking-tighter text-black">
+                  {rollingName || "···"}
+                </p>
+              </div>
+
+              <p
+                className="mt-10 text-xl font-black uppercase tracking-[0.35em] text-white sm:text-3xl"
+                style={{ animation: "blink 0.9s steps(1) infinite" }}
+              >
+                Разбъркваме имената
+              </p>
+
+              {/* Скролваща лента с всички имена */}
+              <div className="absolute inset-x-0 bottom-6 overflow-hidden border-y-4 border-white/20 py-3">
+                <div className="flex w-max whitespace-nowrap" style={{ animation: "reel-scroll 12s linear infinite" }}>
+                  {[...marqueeNames, ...marqueeNames].map((n, i) => (
+                    <span key={i} className="mx-6 text-2xl font-black uppercase tracking-widest text-white/25">
+                      {n} <span className="text-[#f97316]">✦</span>
+                    </span>
+                  ))}
                 </div>
-                <p className="text-sm text-gray-500">Разбъркваме имената...</p>
-              </>
-            ) : winner ? (
-              <>
-                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-amber-100">
-                  <Trophy className="h-10 w-10 text-amber-500" />
-                </div>
-                <p className="text-sm font-semibold uppercase tracking-wide text-amber-600">Печеливш</p>
-                <p className="text-balance text-center text-4xl font-extrabold text-gray-900">{winner.name}</p>
-                <div className="text-center text-gray-600">
-                  <p>{winner.phone}</p>
-                  <p className="text-sm">{winner.storeName || "Без магазин"}</p>
-                </div>
-                <Button
+              </div>
+            </div>
+          ) : winner ? (
+            <div className="relative z-10 flex w-full flex-col items-center px-4">
+              {/* Конфети */}
+              <div className="pointer-events-none absolute inset-0 overflow-hidden">
+                {confettiPieces.map((c, i) => (
+                  <span
+                    key={i}
+                    className="absolute top-0 block"
+                    style={{
+                      left: `${c.left}%`,
+                      width: c.size,
+                      height: c.size,
+                      backgroundColor: c.color,
+                      animation: `confetti-fall ${c.duration}s linear ${c.delay}s infinite`,
+                    }}
+                  />
+                ))}
+              </div>
+
+              <div
+                className="flex items-center gap-3 border-4 border-black bg-[#facc15] px-6 py-2 shadow-[8px_8px_0_0_#000]"
+                style={{ animation: "winner-pop 0.6s ease-out both" }}
+              >
+                <Trophy className="h-8 w-8 text-black sm:h-10 sm:w-10" />
+                <span className="text-2xl font-black uppercase tracking-[0.25em] text-black sm:text-4xl">
+                  Печеливш
+                </span>
+              </div>
+
+              {/* Голямото име */}
+              <div
+                className="mt-10 w-full max-w-5xl border-8 border-white bg-[#f97316] px-6 py-12 text-center shadow-[20px_20px_0_0_#facc15] sm:py-20"
+                style={{ animation: "winner-pop 0.7s 0.1s ease-out both" }}
+              >
+                <p className="text-balance text-[clamp(3rem,13vw,10rem)] font-black uppercase leading-[0.9] tracking-tighter text-black">
+                  {winner.name}
+                </p>
+              </div>
+
+              {/* Данни */}
+              <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
+                <span className="border-4 border-white bg-black px-5 py-2 text-lg font-black uppercase tracking-wider text-white sm:text-xl">
+                  {winner.phone}
+                </span>
+                <span className="border-4 border-[#f97316] bg-black px-5 py-2 text-lg font-black uppercase tracking-wider text-[#f97316] sm:text-xl">
+                  {winner.storeName || "Без магазин"}
+                </span>
+              </div>
+
+              <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+                <button
+                  onClick={startDraw}
+                  className="border-4 border-white bg-black px-8 py-4 text-lg font-black uppercase tracking-widest text-white transition-transform hover:-translate-y-1 hover:bg-white hover:text-black"
+                >
+                  Тегли отново
+                </button>
+                <button
                   onClick={() => setDrawOpen(false)}
-                  className="mt-2 bg-orange-600 hover:bg-orange-700"
+                  className="border-4 border-black bg-[#f97316] px-10 py-4 text-lg font-black uppercase tracking-widest text-black shadow-[8px_8px_0_0_#fff] transition-transform hover:-translate-y-1"
                 >
                   Готово
-                </Button>
-              </>
-            ) : null}
-          </div>
-        </DialogContent>
-      </Dialog>
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
+      )}
     </div>
   )
 }

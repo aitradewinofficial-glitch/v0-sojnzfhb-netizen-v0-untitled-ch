@@ -1642,11 +1642,22 @@ export default function ProductionAdminPage() {
             </div>
           ) : productionProducts.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
-              Няма добавени производствени продукти. Натиснете "Добави продукт" за да добавите.
+              Няма добавен�� производствени продукти. Натиснете "Добави продукт" за да добавите.
             </div>
           ) : (
             <>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+                <div className="relative w-full sm:max-w-xs">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="search"
+                    placeholder="Търси по име на продукт..."
+                    value={productionProductSearch}
+                    onChange={(e) => setProductionProductSearch(e.target.value)}
+                    className="pl-9"
+                    aria-label="Търсене по име на производствен продукт"
+                  />
+                </div>
                 <div className="flex items-center gap-2">
                   <Label htmlFor="production-line-filter" className="text-sm text-muted-foreground whitespace-nowrap">
                     Производствена линия

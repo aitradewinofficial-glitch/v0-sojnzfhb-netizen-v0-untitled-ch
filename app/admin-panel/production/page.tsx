@@ -19,7 +19,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "@/components/ui/use-toast"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Plus, Users, Factory, Package, DollarSign, Trash2 } from "lucide-react"
+import { Plus, Users, Factory, Package, DollarSign, Trash2, Search } from "lucide-react"
 
 interface Employee {
   id: number
@@ -153,6 +153,7 @@ export default function ProductionAdminPage() {
 
   const [productionProductSortOrder, setProductionProductSortOrder] = useState<"asc" | "desc">("asc")
   const [productionProductLineFilter, setProductionProductLineFilter] = useState<string>("all")
+  const [productionProductSearch, setProductionProductSearch] = useState<string>("")
 
   // Initialize salary_level_id for newEmployee
   const [newEmployee, setNewEmployee] = useState({ name: "", salary_level_id: "" })
@@ -462,7 +463,7 @@ export default function ProductionAdminPage() {
     } catch (error) {
       toast({
         title: "Грешка",
-        description: "Възникна проблем при добавяне на производствената линия",
+        description: "Възни��на проблем при добавяне на производствената линия",
         variant: "destructive",
       })
     }
@@ -955,10 +956,13 @@ export default function ProductionAdminPage() {
   }
 
   const getSortedProductionProducts = () => {
-    const filtered =
-      productionProductLineFilter === "all"
-        ? productionProducts
-        : productionProducts.filter((p) => p.production_line_id.toString() === productionProductLineFilter)
+    const search = productionProductSearch.trim().toLowerCase()
+    const filtered = productionProducts.filter((p) => {
+      const matchesLine =
+        productionProductLineFilter === "all" || p.production_line_id.toString() === productionProductLineFilter
+      const matchesSearch = search === "" || p.name.toLowerCase().includes(search)
+      return matchesLine && matchesSearch
+    })
 
     return [...filtered].sort((a, b) => {
       const nameA = a.name.toLowerCase()

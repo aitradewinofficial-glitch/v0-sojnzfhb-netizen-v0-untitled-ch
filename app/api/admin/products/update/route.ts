@@ -101,6 +101,14 @@ export async function POST(request: NextRequest) {
         ? Number.parseFloat(String(europe_price_eur))
         : null
 
+    // Ако е попълнена само EUR цената, генерираме съответната цена в лева (фиксиран курс 1 EUR = 1.95583 BGN)
+    const EUR_TO_BGN = 1.95583
+    const eurToBgn = (eur: number | null) => (eur !== null ? Math.round(eur * EUR_TO_BGN * 100) / 100 : null)
+    const finalPrice = numPrice ?? eurToBgn(numPriceEur)
+    const finalRetailerPrice = numRetailerPrice ?? eurToBgn(numRetailerPriceEur)
+    const finalWholesalerPrice = numWholesalerPrice ?? eurToBgn(numWholesalerPriceEur)
+    const finalEuropePrice = numEuropePrice ?? eurToBgn(numEuropePriceEur)
+
     // Correct handling for cateid and subcateid as strings or null
     const finalCateId = cateid !== null && cateid !== undefined && String(cateid).trim() !== "" ? String(cateid) : null
     const finalSubCateId =
@@ -131,10 +139,10 @@ export async function POST(request: NextRequest) {
       SET 
         title = ${title},
         description = ${description || null},
-        price = ${numPrice},
-        retailerprice = ${numRetailerPrice},
-        wholesalerprice = ${numWholesalerPrice},
-        europe_price = ${numEuropePrice},
+      price = ${finalPrice},
+      retailerprice = ${finalRetailerPrice},
+      wholesalerprice = ${finalWholesalerPrice},
+      europe_price = ${finalEuropePrice},
         price_eur = ${numPriceEur},
         retailerprice_eur = ${numRetailerPriceEur},
         wholesalerprice_eur = ${numWholesalerPriceEur},

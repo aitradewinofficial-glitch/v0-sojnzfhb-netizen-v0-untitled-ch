@@ -21,6 +21,7 @@ interface Product {
   subcategory_title?: string
   createdat?: string
   europe_price?: number | string | null
+  price_eur?: number | string | null
   description?: string
   retailerprice?: number | string | null
   wholesalerprice?: number | string | null
@@ -138,6 +139,10 @@ export default function ProductsPage() {
             europe_price:
               p.europe_price !== null && p.europe_price !== undefined && p.europe_price !== ""
                 ? Number(p.europe_price)
+                : null,
+            price_eur:
+              p.price_eur !== null && p.price_eur !== undefined && p.price_eur !== ""
+                ? Number(p.price_eur)
                 : null,
           }))
           setProducts(typedProducts)
@@ -417,7 +422,7 @@ export default function ProductsPage() {
                           {typeof product.price === "number" ? `${product.price.toFixed(2)} лв.` : "Н/А"}
                         </td>
                         <td className="py-3 px-4">
-                          {typeof product.europe_price === "number" ? `${product.europe_price.toFixed(2)} €` : "Н/А"}
+                          {typeof product.price_eur === "number" ? `${product.price_eur.toFixed(2)} €` : "Н/А"}
                         </td>
                         <td className="py-3 px-4 text-sm text-gray-600">{product.category_title || "Н/А"}</td>
                         <td className="py-3 px-4 text-sm text-gray-600">{product.subcategory_title || "Н/А"}</td>

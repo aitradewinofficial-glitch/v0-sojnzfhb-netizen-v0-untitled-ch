@@ -406,7 +406,7 @@ export default function AddProductPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
                 <label htmlFor="price" className="text-sm font-medium">
-                  Цена *
+                  Цена
                 </label>
                 <Input
                   id="price"
@@ -415,7 +415,6 @@ export default function AddProductPage() {
                   step="0.01"
                   value={formData.price}
                   onChange={handleChange}
-                  required
                   className="bg-white border-gray-300"
                 />
               </div>

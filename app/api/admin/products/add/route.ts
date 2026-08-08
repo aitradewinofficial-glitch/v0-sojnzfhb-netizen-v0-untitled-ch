@@ -36,6 +36,14 @@ export async function POST(request: Request) {
     const retailerprice_eur = data.retailerprice_eur ? Number.parseFloat(data.retailerprice_eur) : null
     const europe_price_eur = data.europe_price_eur ? Number.parseFloat(data.europe_price_eur) : null
 
+    // Ако е попълнена само EUR цената, генерираме съответната цена в лева (фиксиран курс 1 EUR = 1.95583 BGN)
+    const EUR_TO_BGN = 1.95583
+    const eurToBgn = (eur: number | null) => (eur !== null ? Math.round(eur * EUR_TO_BGN * 100) / 100 : null)
+    const finalPrice = price ?? eurToBgn(price_eur)
+    const finalWholesalerPrice = wholesalerprice ?? eurToBgn(wholesalerprice_eur)
+    const finalRetailerPrice = retailerprice ?? eurToBgn(retailerprice_eur)
+    const finalEuropePrice = europe_price ?? eurToBgn(europe_price_eur)
+
     // Активен статус се съхранява чрез колоната "deleted" (deleted = !active)
     const deleted = !(typeof data.active === "boolean" ? data.active : true)
 
@@ -111,10 +119,10 @@ export async function POST(request: Request) {
         ${data.description_en || ""},
         ${data.sku || null},
         ${data.barcode || null},
-        ${price}, 
-        ${wholesalerprice}, 
-        ${retailerprice}, 
-        ${europe_price},
+        ${finalPrice}, 
+        ${finalWholesalerPrice}, 
+        ${finalRetailerPrice}, 
+        ${finalEuropePrice},
         ${price_eur},
         ${wholesalerprice_eur},
         ${retailerprice_eur},

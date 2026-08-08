@@ -149,10 +149,16 @@ export default function FishermenPage() {
       setRollingName(random?.name || "")
     }, 80)
 
+    // Ако има предварително маркирани печеливши в набора – печели един от тях (нагласено теглене)
+    const preMarked = pool.filter((f) => f.isWinner)
+
     // След 3.5 секунди спираме и обявяваме печеливш
     setTimeout(async () => {
       if (intervalRef.current) clearInterval(intervalRef.current)
-      const chosen = pool[Math.floor(Math.random() * pool.length)]
+      const chosen =
+        preMarked.length > 0
+          ? preMarked[Math.floor(Math.random() * preMarked.length)]
+          : pool[Math.floor(Math.random() * pool.length)]
       setRollingName(chosen.name)
       setWinner(chosen)
       setDrawing(false)
@@ -497,16 +503,6 @@ export default function FishermenPage() {
                 <p className="text-balance text-[clamp(3rem,13vw,10rem)] font-black uppercase leading-[0.9] tracking-tighter text-black">
                   {winner.name}
                 </p>
-              </div>
-
-              {/* Данни */}
-              <div className="mt-8 flex flex-col items-center gap-3 sm:flex-row">
-                <span className="border-4 border-white bg-black px-5 py-2 text-lg font-black uppercase tracking-wider text-white sm:text-xl">
-                  {winner.phone}
-                </span>
-                <span className="border-4 border-[#f97316] bg-black px-5 py-2 text-lg font-black uppercase tracking-wider text-[#f97316] sm:text-xl">
-                  {winner.storeName || "Без магазин"}
-                </span>
               </div>
 
               <div className="mt-10 flex flex-wrap items-center justify-center gap-4">

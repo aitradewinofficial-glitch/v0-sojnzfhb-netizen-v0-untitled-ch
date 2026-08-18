@@ -54,13 +54,13 @@ export function UsersTab() {
     })
     setSaving(false)
     if (res.ok) {
-      toast({ title: "Потребителят е добавен" })
+      toast.success("Потребителят е добавен")
       setName("")
       setEmail("")
       setRoleId("")
       mutate(USERS_KEY)
     } else {
-      toast({ title: "Грешка при добавяне", variant: "destructive" })
+      toast.error("Грешка при добавяне")
     }
   }
 
@@ -76,7 +76,7 @@ export function UsersTab() {
   async function removeUser(id: number) {
     await fetch(`${USERS_KEY}/${id}`, { method: "DELETE" })
     mutate(USERS_KEY)
-    toast({ title: "Потребителят е изтрит" })
+    toast.success("Потребителят е изтрит")
   }
 
   return (

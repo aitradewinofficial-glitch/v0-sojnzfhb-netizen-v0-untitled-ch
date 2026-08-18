@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server"
 import { getRoles, getAreas, getRoleAreas, setRoleAreas } from "@/lib/madix-ai/service"
 
 export async function GET() {

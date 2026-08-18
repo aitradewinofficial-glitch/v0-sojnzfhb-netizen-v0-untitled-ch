@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { toast } from "@/components/ui/use-toast"
+import { toast } from "sonner"
 import { fetcher, type Area, type Role } from "@/components/madix-ai/types"
 
 const ROLES_KEY = "/api/madix-ai/admin/roles"
@@ -53,10 +53,10 @@ function RoleCard({ role, areas }: { role: RoleWithAreas; areas: Area[] }) {
     })
     setSaving(false)
     if (res.ok) {
-      toast({ title: `Правата за „${role.name}" са запазени` })
+      toast.success(`Правата за „${role.name}" са запазени`)
       mutate(ROLES_KEY)
     } else {
-      toast({ title: "Грешка при запис", variant: "destructive" })
+      toast.error("Грешка при запис")
     }
   }
 

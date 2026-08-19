@@ -1,4 +1,5 @@
 import { generateText } from "ai"
+import { openai } from "@ai-sdk/openai"
 import {
   getUserById,
   getRoleAreas,
@@ -65,7 +66,7 @@ export async function POST(req: Request) {
         .join("\n\n---\n\n")
 
       const result = await generateText({
-        model: "openai/gpt-4o-mini",
+        model: openai("gpt-4o-mini"),
         system:
           "Ти си вътрешният асистент на фабриката за захранки MADIX Groundbaits. " +
           "Отговаряш САМО на базата на предоставените източници по-долу. " +

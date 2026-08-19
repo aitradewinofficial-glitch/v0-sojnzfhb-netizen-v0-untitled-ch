@@ -38,11 +38,16 @@ async function main() {
       id SERIAL PRIMARY KEY,
       name TEXT NOT NULL,
       email TEXT UNIQUE NOT NULL,
+      username TEXT UNIQUE,
+      password TEXT,
       role_id INTEGER REFERENCES madix_ai_roles(id) ON DELETE SET NULL,
       active BOOLEAN NOT NULL DEFAULT true,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `
+
+  await sql`ALTER TABLE madix_ai_users ADD COLUMN IF NOT EXISTS username TEXT UNIQUE`
+  await sql`ALTER TABLE madix_ai_users ADD COLUMN IF NOT EXISTS password TEXT`
 
   await sql`
     CREATE TABLE IF NOT EXISTS madix_ai_documents (
@@ -135,16 +140,17 @@ async function main() {
   console.log("MADIX AI setup: seeding employees...")
 
   const users = [
-    ["Иван Оператор", "operator@madix.bg", "Оператор"],
-    ["Ема Продажби", "sales@madix.bg", "Продажби"],
-    ["Габи Снабдяване", "supply@madix.bg", "Снабдяване"],
-    ["Директор Мадикс", "director@madix.bg", "Ръководство"],
+    ["Иван Оператор", "operator@madix.bg", "operator", "operator123", "Оператор"],
+    ["Ема Продажби", "sales@madix.bg", "sales", "sales123", "Продажби"],
+    ["Габи Снабдяване", "supply@madix.bg", "supply", "supply123", "Снабдяване"],
+    ["Директор Мадикс", "director@madix.bg", "director", "director123", "Ръководство"],
   ]
-  for (const [name, email, rName] of users) {
+  for (const [name, email, username, password, rName] of users) {
     await sql`
-      INSERT INTO madix_ai_users (name, email, role_id)
-      VALUES (${name}, ${email}, ${roleId[rName]})
-      ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name, role_id = EXCLUDED.role_id
+      INSERT INTO madix_ai_users (name, email, username, password, role_id)
+      VALUES (${name}, ${email}, ${username}, ${password}, ${roleId[rName]})
+      ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name, role_id = EXCLUDED.role_id,
+        username = EXCLUDED.username, password = EXCLUDED.password
     `
   }
 

@@ -11,11 +11,11 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const { name, email, roleId } = await req.json()
-    if (!name || !email) {
-      return Response.json({ error: "Име и имейл са задължителни." }, { status: 400 })
+    const { name, email, roleId, username, password } = await req.json()
+    if (!name || !email || !username || !password) {
+      return Response.json({ error: "Име, имейл, потребителско име и парола са задължителни." }, { status: 400 })
     }
-    await createUser(String(name), String(email), roleId ? Number(roleId) : null)
+    await createUser(String(name), String(email), roleId ? Number(roleId) : null, String(username), String(password))
     return Response.json({ ok: true })
   } catch (err) {
     console.error("[v0] MADIX AI users POST error:", err)

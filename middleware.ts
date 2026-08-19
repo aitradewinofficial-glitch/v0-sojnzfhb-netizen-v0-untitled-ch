@@ -3,7 +3,10 @@ import type { NextRequest } from "next/server"
 
 export function middleware(request: NextRequest) {
   // Check if the request is for the admin panel
-  if (request.nextUrl.pathname.startsWith("/admin-panel")) {
+  if (
+    request.nextUrl.pathname.startsWith("/admin-panel") ||
+    request.nextUrl.pathname.startsWith("/api/madix-ai/admin")
+  ) {
     const authorizationHeader = request.headers.get("authorization")
 
     // If no authorization header is present, prompt for credentials
@@ -27,9 +30,12 @@ export function middleware(request: NextRequest) {
     const credentials = Buffer.from(base64Credentials, "base64").toString("utf-8")
     const [username, password] = credentials.split(":")
 
-    // !!! WARNING: This is highly insecure for production environments. !!!
-    // Hardcoding credentials is not recommended. Use a proper authentication system.
-    if (username === "ilian" && password === "ilian123") {
+    // Keep the existing admin-panel credentials for the rest of the admin area,
+    // while MADIX AI uses its dedicated credentials.
+    const isMadixAi = request.nextUrl.pathname.startsWith("/admin-panel/madix-ai") ||
+      request.nextUrl.pathname.startsWith("/api/madix-ai/admin")
+    const expectedPassword = isMadixAi ? "boss123" : "ilian123"
+    if (username === "ilian" && password === expectedPassword) {
       return NextResponse.next()
     } else {
       return new NextResponse("Invalid credentials", {
@@ -44,14 +50,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
-  ],
+  matcher: ["/admin-panel/:path*", "/api/madix-ai/admin/:path*"],
 }

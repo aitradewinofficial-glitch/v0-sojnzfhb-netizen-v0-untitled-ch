@@ -23,6 +23,8 @@ export type MadixUser = {
   id: number
   name: string
   email: string
+  username: string | null
+  password: string | null
   role_id: number | null
   role_name: string | null
   active: boolean
@@ -53,7 +55,7 @@ export type RetrievedChunk = {
 
 export async function getUsers(): Promise<MadixUser[]> {
   return (await sql`
-    SELECT u.id, u.name, u.email, u.role_id, u.active, r.name AS role_name
+    SELECT u.id, u.name, u.email, u.username, u.password, u.role_id, u.active, r.name AS role_name
     FROM madix_ai_users u
     LEFT JOIN madix_ai_roles r ON r.id = u.role_id
     ORDER BY u.name ASC
@@ -62,7 +64,7 @@ export async function getUsers(): Promise<MadixUser[]> {
 
 export async function getUserById(id: number): Promise<MadixUser | null> {
   const rows = (await sql`
-    SELECT u.id, u.name, u.email, u.role_id, u.active, r.name AS role_name
+    SELECT u.id, u.name, u.email, u.username, u.password, u.role_id, u.active, r.name AS role_name
     FROM madix_ai_users u
     LEFT JOIN madix_ai_roles r ON r.id = u.role_id
     WHERE u.id = ${id}
@@ -99,21 +101,30 @@ export async function setRoleAreas(roleId: number, areaIds: number[]): Promise<v
   }
 }
 
-export async function createUser(name: string, email: string, roleId: number | null): Promise<void> {
+export async function createUser(
+  name: string,
+  email: string,
+  roleId: number | null,
+  username: string,
+  password: string,
+): Promise<void> {
   await sql`
-    INSERT INTO madix_ai_users (name, email, role_id)
-    VALUES (${name}, ${email}, ${roleId})
-    ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name, role_id = EXCLUDED.role_id
+    INSERT INTO madix_ai_users (name, email, role_id, username, password)
+    VALUES (${name}, ${email}, ${roleId}, ${username}, ${password})
+    ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name, role_id = EXCLUDED.role_id,
+      username = EXCLUDED.username, password = EXCLUDED.password
   `
 }
 
 export async function updateUser(
   id: number,
-  fields: { name?: string; roleId?: number | null; active?: boolean },
+  fields: { name?: string; roleId?: number | null; active?: boolean; username?: string; password?: string },
 ): Promise<void> {
   if (fields.name !== undefined) await sql`UPDATE madix_ai_users SET name = ${fields.name} WHERE id = ${id}`
   if (fields.roleId !== undefined) await sql`UPDATE madix_ai_users SET role_id = ${fields.roleId} WHERE id = ${id}`
   if (fields.active !== undefined) await sql`UPDATE madix_ai_users SET active = ${fields.active} WHERE id = ${id}`
+  if (fields.username !== undefined) await sql`UPDATE madix_ai_users SET username = ${fields.username} WHERE id = ${id}`
+  if (fields.password !== undefined) await sql`UPDATE madix_ai_users SET password = ${fields.password} WHERE id = ${id}`
 }
 
 export async function deleteUser(id: number): Promise<void> {

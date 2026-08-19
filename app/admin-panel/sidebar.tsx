@@ -24,6 +24,7 @@ import {
   Search,
   Boxes,
   Fish,
+  BrainCircuit,
 } from "lucide-react"
 
 export function Sidebar({ items }: { items: any[] }) {
@@ -159,6 +160,12 @@ export function Sidebar({ items }: { items: any[] }) {
       href: "/admin-panel/seo-settings",
       icon: Search,
       active: isActive("/admin-panel/seo-settings"),
+    },
+    {
+      title: "Изкуствен интелект",
+      href: "/admin-panel/madix-ai",
+      icon: BrainCircuit,
+      active: isActive("/admin-panel/madix-ai"),
     },
     {
       title: "Към сайта",

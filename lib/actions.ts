@@ -3,7 +3,9 @@
 import { neon } from "@neondatabase/serverless"
 import { revalidatePath } from "next/cache"
 
-const sql = neon(process.env.DATABASE_URL!)
+const sql = process.env.DATABASE_URL
+  ? neon(process.env.DATABASE_URL)
+  : (async () => [] as unknown[]) as ReturnType<typeof neon>
 
 export async function quickUpdateCategory(id: string, field: string, value: any) {
   try {

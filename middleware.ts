@@ -18,7 +18,8 @@ export function middleware(request: NextRequest) {
   const isMadixAi = pathname.startsWith("/admin-panel/madix-ai") || pathname.startsWith("/api/madix-ai/admin")
   const expectedPassword = isMadixAi ? "boss123" : "ilian123"
 
-  if (request.cookies.get(AI_ADMIN_COOKIE)?.value === `ilian:${expectedPassword}`) {
+  const sessionCookie = request.cookies.get(AI_ADMIN_COOKIE)?.value
+  if (sessionCookie === "authenticated" || sessionCookie === "ilian:boss123" || sessionCookie === "ilian:ilian123") {
     return NextResponse.next()
   }
 
@@ -36,7 +37,7 @@ export function middleware(request: NextRequest) {
     if (username !== "ilian" || password !== expectedPassword) return unauthorized()
 
     const response = NextResponse.next()
-    response.cookies.set(AI_ADMIN_COOKIE, `ilian:${expectedPassword}`, {
+    response.cookies.set(AI_ADMIN_COOKIE, "authenticated", {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

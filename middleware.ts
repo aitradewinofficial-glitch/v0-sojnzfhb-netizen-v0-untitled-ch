@@ -12,6 +12,8 @@ function unauthorized() {
 
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname
+  if (pathname === "/admin-panel/madix-ai/login" || pathname === "/api/madix-ai/login") return NextResponse.next()
+
   const isProtected = pathname.startsWith("/admin-panel") || pathname.startsWith("/api/madix-ai/admin")
   if (!isProtected) return NextResponse.next()
 
@@ -24,7 +26,10 @@ export function middleware(request: NextRequest) {
   }
 
   const authorizationHeader = request.headers.get("authorization")
-  if (!authorizationHeader) return unauthorized()
+  if (!authorizationHeader) {
+    if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    return NextResponse.redirect(new URL("/admin-panel/madix-ai/login", request.url))
+  }
 
   const [authType, base64Credentials] = authorizationHeader.split(" ")
   if (authType !== "Basic" || !base64Credentials) return unauthorized()

@@ -21,8 +21,15 @@ export function middleware(request: NextRequest) {
   const expectedPassword = isMadixAi ? "boss123" : "ilian123"
 
   const sessionCookie = request.cookies.get(AI_ADMIN_COOKIE)?.value
-  if (sessionCookie === "authenticated" || sessionCookie === "ilian:boss123" || sessionCookie === "ilian:ilian123") {
-    return NextResponse.next()
+  if (isMadixAi && sessionCookie === "authenticated") return NextResponse.next()
+
+  // MADIX AI has its own login form. Never reuse the browser's general-admin
+  // Basic Auth credentials for AI routes, otherwise Chrome shows its native prompt.
+  if (isMadixAi) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 })
+    }
+    return NextResponse.redirect(new URL("/admin-panel/madix-ai/login", request.url))
   }
 
   const authorizationHeader = request.headers.get("authorization")

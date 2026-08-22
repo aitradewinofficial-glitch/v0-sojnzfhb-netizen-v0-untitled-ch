@@ -1,11 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 
-// Уверете се, че DATABASE_URL е правилно конфигуриран във вашите променливи на средата
-const sql = neon(process.env.DATABASE_URL!)
+function getSql() {
+  const databaseUrl = process.env.DATABASE_URL
+  if (!databaseUrl) throw new Error("DATABASE_URL is not configured")
+  return neon(databaseUrl)
+}
 
 export async function GET(request: NextRequest) {
   try {
+    const sql = getSql()
     const { searchParams } = new URL(request.url)
     const id = searchParams.get("id")
 

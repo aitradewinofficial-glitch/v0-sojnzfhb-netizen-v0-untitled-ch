@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 
-// Create SQL client
-const sql = neon(process.env.DATABASE_URL!)
+function getSql() {
+  const databaseUrl = process.env.DATABASE_URL
+  if (!databaseUrl) throw new Error("DATABASE_URL is not configured")
+  return neon(databaseUrl)
+}
 
 export async function GET(request: Request) {
   try {
+    const sql = getSql()
     console.log("Adding europe_price column to new_products table with default value 0")
 
     // Check if the column already exists
@@ -87,6 +91,7 @@ export async function GET(request: Request) {
 // POST method to update existing products with sample European prices (optional)
 export async function POST(request: Request) {
   try {
+    const sql = getSql()
     const body = await request.json()
     const { addSamplePrices = false } = body
 

@@ -1,10 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 
-const sql = neon(process.env.DATABASE_URL!)
+function getSql() {
+  const databaseUrl = process.env.DATABASE_URL
+  if (!databaseUrl) throw new Error("DATABASE_URL is not configured")
+  return neon(databaseUrl)
+}
 
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
+    const sql = getSql()
     const employeeId = Number.parseInt(params.id)
     const { daily_target } = await request.json()
 

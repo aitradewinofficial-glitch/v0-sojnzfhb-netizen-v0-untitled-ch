@@ -1,10 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 
-const sql = neon(process.env.DATABASE_URL!)
+function getSql() {
+  const databaseUrl = process.env.DATABASE_URL
+  if (!databaseUrl) throw new Error("DATABASE_URL is not configured")
+  return neon(databaseUrl)
+}
 
 export async function GET() {
   try {
+    const sql = getSql()
     const salaryLevels = await sql`
       SELECT * FROM salary_levels 
       WHERE active = true 
@@ -20,6 +25,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const sql = getSql()
     const body = await request.json()
     const { level_name, salary_per_day } = body
 

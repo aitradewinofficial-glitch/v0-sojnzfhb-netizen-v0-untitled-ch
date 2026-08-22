@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 
-// Създаваме SQL клиент
-const sql = neon(process.env.DATABASE_URL!)
+function getSql() {
+  const databaseUrl = process.env.DATABASE_URL
+  if (!databaseUrl) throw new Error("DATABASE_URL is not configured")
+  return neon(databaseUrl)
+}
 
 export async function POST(request: Request) {
   try {
+    const sql = getSql()
     console.log("Получена заявка за добавяне на продукт")
 
     // Извличаме данните от заявката

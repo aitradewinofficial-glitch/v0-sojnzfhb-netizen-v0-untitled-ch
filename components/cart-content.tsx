@@ -206,14 +206,22 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
     }
   }
 
-  const currentOriginalTotalPrice = cart.getTotalPrice() // This is sum of item.price * item.quantity
+  const currentOriginalTotalPrice = cart.getTotalPrice()
+  const currentOriginalTotalEur = cart.items.reduce((total, item) => {
+    const paidQuantity = Math.max(0, item.quantity - (item.freeItems || 0))
+    return total + (item.eurPrice ?? convertBgnToEur(item.price)) * paidQuantity
+  }, 0)
   const discountPercent = currentUser?.discountPercent || 0
   let currentDiscountAmount = 0
+  let currentDiscountAmountEur = 0
   let currentFinalTotalPrice = currentOriginalTotalPrice
+  let currentFinalTotalEur = currentOriginalTotalEur
 
   if (currentUser && discountPercent > 0) {
     currentDiscountAmount = currentOriginalTotalPrice * (discountPercent / 100)
+    currentDiscountAmountEur = currentOriginalTotalEur * (discountPercent / 100)
     currentFinalTotalPrice = currentOriginalTotalPrice - currentDiscountAmount
+    currentFinalTotalEur = currentOriginalTotalEur - currentDiscountAmountEur
   }
 
   const handleSubmitInquiry = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -554,7 +562,7 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
               <div className="flex justify-between items-center">
                 <span>{t.subtotal}:</span>
                 <div className="text-right">
-                  <span className="font-semibold">{formatPrice(convertBgnToEur(currentOriginalTotalPrice))} €</span>
+                  <span className="font-semibold">{formatPrice(currentOriginalTotalEur)} €</span>
                   <span className="text-sm text-gray-500 ml-2">({formatPrice(currentOriginalTotalPrice)} лв.)</span>
                 </div>
               </div>
@@ -565,7 +573,7 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
                       {t.discount} ({discountPercent}%):
                     </span>
                     <div className="text-right">
-                      <span className="font-semibold">-{formatPrice(convertBgnToEur(currentDiscountAmount))} €</span>
+                      <span className="font-semibold">-{formatPrice(currentDiscountAmountEur)} €</span>
                       <span className="text-sm text-green-500 ml-2">(-{formatPrice(currentDiscountAmount)} лв.)</span>
                     </div>
                   </div>
@@ -575,7 +583,7 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
               <div className="flex justify-between items-center font-bold text-gray-800">
                 <span className="text-xl">{t.finalTotal}:</span>
                 <div className="text-right">
-                  <span className="text-2xl">{formatPrice(convertBgnToEur(currentFinalTotalPrice))} €</span>
+                  <span className="text-2xl">{formatPrice(currentFinalTotalEur)} €</span>
                   <span className="text-base font-medium text-gray-500 ml-2">({formatPrice(currentFinalTotalPrice)} лв.)</span>
                 </div>
               </div>

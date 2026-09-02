@@ -150,6 +150,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
           price: item.price,
           quantity: item.quantity,
           photourl: item.photourl,
+          eurPrice: item.eurPrice,
           isEuropeanPrice: isEuropean,
           promo_buy_qty: item.promo_buy_qty,
           promo_free_qty: item.promo_free_qty,

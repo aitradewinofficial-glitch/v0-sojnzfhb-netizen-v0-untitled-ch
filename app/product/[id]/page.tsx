@@ -406,8 +406,10 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
                   <ProductQuantityControls
                     productId={product.objectid}
                     productTitle={product.title}
-                    productPrice={priceToDisplay !== null ? priceToDisplay : 0}
-                    photoUrl={product.photourl}
+  productPrice={priceToDisplay !== null ? priceToDisplay : 0}
+  eurPrice={eurPrice}
+  photoUrl={product.photourl}
+
                     promo_buy_qty={finalPromoBuyQty}
                     promo_free_qty={finalPromoFreeQty}
                     disabled={priceToDisplay === null}

@@ -13,6 +13,7 @@ interface ProductQuantityControlsProps {
   productId: string
   productTitle: string
   productPrice: number
+  eurPrice?: number | null
   photoUrl?: string
   promo_buy_qty?: number | null
   promo_free_qty?: number | null
@@ -24,6 +25,7 @@ export function ProductQuantityControls({
   productId,
   productTitle,
   productPrice,
+  eurPrice,
   photoUrl,
   promo_buy_qty,
   promo_free_qty,
@@ -54,6 +56,7 @@ export function ProductQuantityControls({
         id: productId,
         title: productTitle,
         price: productPrice,
+        eurPrice,
         quantity: finalQuantity,
         photourl: photoUrl || "",
         promo_buy_qty: promo_buy_qty || null,

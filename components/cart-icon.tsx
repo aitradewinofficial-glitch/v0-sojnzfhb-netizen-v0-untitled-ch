@@ -56,11 +56,11 @@ export function CartIcon() {
   }
 
   // Format price with both EUR and BGN
-  const formatPriceWithEur = (price: number) => {
-    const eurPrice = convertBgnToEur(price)
+  const formatPriceWithEur = (price: number, exactEurPrice?: number | null) => {
+    const eurPrice = exactEurPrice ?? convertBgnToEur(price)
     return {
       eur: eurPrice.toFixed(2),
-      bgn: price.toFixed(2)
+      bgn: price.toFixed(2),
     }
   }
 
@@ -110,6 +110,7 @@ export function CartIcon() {
               {items.slice(0, 4).map((item) => {
                 const paidQuantity = item.quantity - (item.freeItems || 0)
                 const itemTotal = item.price * Math.max(0, paidQuantity)
+                const itemEurTotal = (item.eurPrice ?? convertBgnToEur(item.price)) * Math.max(0, paidQuantity)
                 
                 return (
                   <div key={item.id} className="flex items-start gap-3 p-3 border-b border-neutral-100 last:border-b-0 hover:bg-neutral-50/50 transition-colors">
@@ -182,7 +183,7 @@ export function CartIcon() {
                     <div className="flex flex-col items-end gap-1">
                       <div className="text-right">
                         <span className="text-sm font-bold text-neutral-900">
-                          {formatPriceWithEur(itemTotal).eur}
+                          {formatPriceWithEur(itemTotal, itemEurTotal).eur}
                           <span className="text-xs font-semibold text-neutral-500 ml-0.5">€</span>
                         </span>
                         <span className="block text-[10px] text-neutral-400">
@@ -223,7 +224,10 @@ export function CartIcon() {
                 </span>
                 <div className="text-right">
                   <span className="text-lg font-bold text-neutral-900">
-                    {formatPriceWithEur(totalPrice).eur}
+                    {formatPriceWithEur(totalPrice, items.reduce((total, item) => {
+                      const paidQuantity = Math.max(0, item.quantity - (item.freeItems || 0))
+                      return total + (item.eurPrice ?? convertBgnToEur(item.price)) * paidQuantity
+                    }, 0)).eur}
                     <span className="text-sm font-semibold text-neutral-500 ml-0.5">€</span>
                   </span>
                   <span className="block text-xs text-neutral-400">

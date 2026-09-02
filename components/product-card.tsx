@@ -143,6 +143,7 @@ export function ProductCard({
       id,
       title,
       price: priceForCart,
+      eurPrice: displayEurPriceNumber,
       quantity: 1,
       photourl,
       promo_buy_qty: promo_buy_qty,

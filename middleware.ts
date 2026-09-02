@@ -1,57 +1,59 @@
 import { NextResponse } from "next/server"
 import type { NextRequest } from "next/server"
 
+const AI_ADMIN_COOKIE = "madix_ai_admin_session"
+
+function unauthorized(isAiApi: boolean) {
+  return new NextResponse(isAiApi ? JSON.stringify({ error: "Unauthorized" }) : "Authentication required", {
+    status: 401,
+    headers: isAiApi
+      ? { "Content-Type": "application/json" }
+      : { "WWW-Authenticate": 'Basic realm="Secure Area"' },
+  })
+}
+
 export function middleware(request: NextRequest) {
-  // Check if the request is for the admin panel
-  if (request.nextUrl.pathname.startsWith("/admin-panel")) {
-    const authorizationHeader = request.headers.get("authorization")
+  const pathname = request.nextUrl.pathname
+  const isAiPage = pathname === "/admin-panel/madix-ai" || pathname.startsWith("/admin-panel/madix-ai/")
+  const isAiLogin = pathname === "/api/madix-ai/login"
+  const isProtected = (pathname.startsWith("/admin-panel") && !isAiPage) || (pathname.startsWith("/api/madix-ai/admin") && !isAiLogin)
+  if (!isProtected) return NextResponse.next()
 
-    // If no authorization header is present, prompt for credentials
-    if (!authorizationHeader) {
-      return new NextResponse("Authentication required", {
-        status: 401,
-        headers: { "WWW-Authenticate": 'Basic realm="Secure Area"' },
-      })
-    }
+  const isMadixAi = pathname.startsWith("/api/madix-ai/admin")
+  const expectedPassword = isMadixAi ? "boss123" : "ilian123"
 
-    // Decode the base64 credentials
-    const [authType, base64Credentials] = authorizationHeader.split(" ")
-
-    if (authType !== "Basic" || !base64Credentials) {
-      return new NextResponse("Invalid Authorization header", {
-        status: 401,
-        headers: { "WWW-Authenticate": 'Basic realm="Secure Area"' },
-      })
-    }
-
-    const credentials = Buffer.from(base64Credentials, "base64").toString("utf-8")
-    const [username, password] = credentials.split(":")
-
-    // !!! WARNING: This is highly insecure for production environments. !!!
-    // Hardcoding credentials is not recommended. Use a proper authentication system.
-    if (username === "ilian" && password === "ilian123") {
-      return NextResponse.next()
-    } else {
-      return new NextResponse("Invalid credentials", {
-        status: 401,
-        headers: { "WWW-Authenticate": 'Basic realm="Secure Area"' },
-      })
-    }
+  const sessionCookie = request.cookies.get(AI_ADMIN_COOKIE)?.value
+  if (sessionCookie === "authenticated" || sessionCookie === "ilian:boss123" || sessionCookie === "ilian:ilian123") {
+    return NextResponse.next()
   }
 
-  // Allow all other requests to proceed
-  return NextResponse.next()
+  const authorizationHeader = request.headers.get("authorization")
+  if (!authorizationHeader) return unauthorized(isMadixAi)
+
+  const [authType, base64Credentials] = authorizationHeader.split(" ")
+  if (authType !== "Basic" || !base64Credentials) return unauthorized(isMadixAi)
+
+  try {
+    const credentials = atob(base64Credentials)
+    const separator = credentials.indexOf(":")
+    const username = separator >= 0 ? credentials.slice(0, separator) : ""
+    const password = separator >= 0 ? credentials.slice(separator + 1) : ""
+    if (username !== "ilian" || password !== expectedPassword) return unauthorized(isMadixAi)
+
+    const response = NextResponse.next()
+    response.cookies.set(AI_ADMIN_COOKIE, "authenticated", {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 8,
+    })
+    return response
+  } catch {
+    return unauthorized(isMadixAi)
+  }
 }
 
 export const config = {
-  matcher: [
-    /*
-     * Match all request paths except for the ones starting with:
-     * - api (API routes)
-     * - _next/static (static files)
-     * - _next/image (image optimization files)
-     * - favicon.ico (favicon file)
-     */
-    "/((?!api|_next/static|_next/image|favicon.ico).*)",
-  ],
+  matcher: ["/admin-panel/:path*", "/api/madix-ai/admin/:path*"],
 }

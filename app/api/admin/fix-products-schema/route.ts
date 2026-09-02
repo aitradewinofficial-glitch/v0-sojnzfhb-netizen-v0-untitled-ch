@@ -1,11 +1,15 @@
 import { NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 
-// Create SQL client
-const sql = neon(process.env.DATABASE_URL!)
+function getSql() {
+  const databaseUrl = process.env.DATABASE_URL
+  if (!databaseUrl) throw new Error("DATABASE_URL is not configured")
+  return neon(databaseUrl)
+}
 
 export async function GET(request: Request) {
   try {
+    const sql = getSql()
     console.log("Checking and fixing new_products table schema")
 
     // Check if the europe_price column exists

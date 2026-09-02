@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 
-const sql = neon(process.env.DATABASE_URL!)
+function getSql() {
+  const databaseUrl = process.env.DATABASE_URL
+  if (!databaseUrl) throw new Error("DATABASE_URL is not configured")
+  return neon(databaseUrl)
+}
 
 export async function POST(request: Request) {
+  const sql = getSql()
   console.log(`API /api/admin/products/quick-update POST handler invoked at ${new Date().toISOString()}`)
   try {
     const data = await request.json()

@@ -38,25 +38,29 @@ export function UsersTab() {
 
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
+  const [username, setUsername] = useState("")
+  const [password, setPassword] = useState("")
   const [roleId, setRoleId] = useState<string>("")
   const [saving, setSaving] = useState(false)
 
   async function addUser() {
-    if (!name.trim() || !email.trim()) {
-      toast.error("Попълнете име и имейл")
+    if (!name.trim() || !email.trim() || !username.trim() || !password.trim()) {
+      toast.error("Попълнете име, имейл, потребителско име и парола")
       return
     }
     setSaving(true)
     const res = await fetch(USERS_KEY, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, email, roleId: roleId || null }),
+      body: JSON.stringify({ name, email, username, password, roleId: roleId || null }),
     })
     setSaving(false)
     if (res.ok) {
       toast.success("Потребителят е добавен")
       setName("")
       setEmail("")
+      setUsername("")
+      setPassword("")
       setRoleId("")
       mutate(USERS_KEY)
     } else {
@@ -83,7 +87,7 @@ export function UsersTab() {
     <div className="flex flex-col gap-4">
       <Card className="p-4">
         <h2 className="mb-3 text-sm font-semibold">Нов потребител</h2>
-        <div className="grid gap-3 sm:grid-cols-4">
+        <div className="grid gap-3 sm:grid-cols-6">
           <div className="space-y-1">
             <Label htmlFor="u-name">Име</Label>
             <Input id="u-name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Име Фамилия" />
@@ -91,6 +95,14 @@ export function UsersTab() {
           <div className="space-y-1">
             <Label htmlFor="u-email">Имейл</Label>
             <Input id="u-email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="ime@madix.bg" />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="u-username">Потребителско име</Label>
+            <Input id="u-username" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="operator" />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor="u-password">Парола</Label>
+            <Input id="u-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
           </div>
           <div className="space-y-1">
             <Label>Роля</Label>
@@ -122,6 +134,8 @@ export function UsersTab() {
             <TableRow>
               <TableHead>Име</TableHead>
               <TableHead>Имейл</TableHead>
+              <TableHead>Потребителско име</TableHead>
+              <TableHead>Парола</TableHead>
               <TableHead>Роля</TableHead>
               <TableHead className="text-center">Активен</TableHead>
               <TableHead className="w-10" />
@@ -132,6 +146,12 @@ export function UsersTab() {
               <TableRow key={u.id}>
                 <TableCell className="font-medium">{u.name}</TableCell>
                 <TableCell className="text-muted-foreground">{u.email}</TableCell>
+                <TableCell>
+                  <Input className="h-8 w-[130px]" defaultValue={u.username ?? ""} onBlur={(e) => e.target.value !== (u.username ?? "") && patchUser(u.id, { username: e.target.value })} />
+                </TableCell>
+                <TableCell>
+                  <Input className="h-8 w-[130px]" type="text" defaultValue={u.password ?? ""} onBlur={(e) => e.target.value !== (u.password ?? "") && patchUser(u.id, { password: e.target.value })} />
+                </TableCell>
                 <TableCell>
                   <Select
                     value={u.role_id ? String(u.role_id) : ""}

@@ -1,10 +1,15 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 
-const sql = neon(process.env.DATABASE_URL!)
+function getSql() {
+  const databaseUrl = process.env.DATABASE_URL
+  if (!databaseUrl) throw new Error("DATABASE_URL is not configured")
+  return neon(databaseUrl)
+}
 
 export async function GET(request: NextRequest) {
   try {
+    const sql = getSql()
     const { searchParams } = new URL(request.url)
     const includeTargets = searchParams.get("includeTargets") === "true"
 
@@ -49,6 +54,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const sql = getSql()
     const { name, salary_level_id } = await request.json()
 
     if (!name || !name.trim()) {

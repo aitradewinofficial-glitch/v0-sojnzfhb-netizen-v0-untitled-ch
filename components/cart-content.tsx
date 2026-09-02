@@ -486,7 +486,7 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
                         <Link href={productHref(item.title, item.id, isEnglish)}>{item.title}</Link>
                 </h3>
                 <div className="text-md text-gray-700 mt-1">
-                  <span className="font-semibold text-lg">{formatPrice(convertBgnToEur(item.price))} €</span>
+                  <span className="font-semibold text-lg">{formatPrice(item.eurPrice ?? convertBgnToEur(item.price))} €</span>
                   <span className="text-sm text-gray-500 ml-2">({formatPrice(item.price)} лв.)</span>
                 </div>
                 {item.promo_buy_qty && typeof item.promo_free_qty === "number" && (

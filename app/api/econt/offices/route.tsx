@@ -188,12 +188,25 @@ export async function POST(request: Request) {
         }
 
         // Parse XML response
-        const offices = parseEcontOfficesResponse(responseText)
+        const allOffices = parseEcontOfficesResponse(responseText)
 
-        if (offices && offices.length > 0) {
-          console.log(`✅ ${endpoint.name} SUCCESS! Found ${offices.length} offices`)
-          setCachedOffices(cityId, offices)
-          return NextResponse.json(offices)
+        if (allOffices && allOffices.length > 0) {
+          console.log(`✅ ${endpoint.name} SUCCESS! Found ${allOffices.length} Bulgarian offices (after country filter during parsing)`)
+          
+          // Filter offices by the requested cityId
+          const offices = allOffices.filter((office) => {
+            // Match by cityId if available
+            if (office.cityId && office.cityId === cityId) return true
+            return false
+          })
+
+          console.log(`✅ After filtering by cityId ${cityId}: ${offices.length} offices`)
+
+          // If cityId filtering returned nothing, return all Bulgarian offices
+          // The client will do additional city name filtering
+          const result = offices.length > 0 ? offices : allOffices
+          setCachedOffices(cityId, result)
+          return NextResponse.json(result)
         } else {
           console.log(`⚠️ ${endpoint.name} returned empty offices list`)
           throw new Error("No offices found in response")
@@ -277,8 +290,18 @@ function parseEcontOfficesResponse(xmlText: string): EcontOffice[] {
           const latitude = extractXmlValue(officeXml, "latitude") || extractXmlValue(officeXml, "Latitude")
           const longitude = extractXmlValue(officeXml, "longitude") || extractXmlValue(officeXml, "Longitude")
 
+          // City data - extract city_id, city_name, and country_code from the XML
+          const officeCityId = extractXmlValue(officeXml, "id_city") || extractXmlValue(officeXml, "city_id") || extractXmlValue(officeXml, "CityId") || extractXmlValue(officeXml, "cityId")
+          const officeCityName = extractXmlValue(officeXml, "city_name") || extractXmlValue(officeXml, "CityName") || extractXmlValue(officeXml, "cityName")
+          const countryCode = extractXmlValue(officeXml, "country_code") || extractXmlValue(officeXml, "CountryCode")
+
           if (id && name) {
-            const office: EcontOffice = {
+            // Skip non-Bulgarian offices
+            if (countryCode && countryCode !== "BGR") {
+              return
+            }
+
+            const office: EcontOffice & { countryCode?: string } = {
               id: String(id),
               name: String(name),
               nameEn: nameEn ? String(nameEn) : undefined,
@@ -289,6 +312,8 @@ function parseEcontOfficesResponse(xmlText: string): EcontOffice[] {
               workBeginSaturday: workBeginSaturday ? String(workBeginSaturday) : undefined,
               workEndSaturday: workEndSaturday ? String(workEndSaturday) : undefined,
               isMachine: Boolean(isMachine),
+              cityId: officeCityId ? String(officeCityId) : undefined,
+              cityName: officeCityName ? String(officeCityName) : undefined,
             }
 
             if (latitude && longitude) {
@@ -306,7 +331,12 @@ function parseEcontOfficesResponse(xmlText: string): EcontOffice[] {
       })
     }
 
-    console.log(`🎉 Successfully parsed ${offices.length} offices`)
+    console.log(`🎉 Successfully parsed ${offices.length} Bulgarian offices`)
+    // Log sample office IDs for debugging
+    if (offices.length > 0) {
+      console.log(`📋 Sample office cityIds: ${offices.slice(0, 5).map(o => o.cityId).join(', ')}`)
+      console.log(`📋 Sample office names: ${offices.slice(0, 3).map(o => o.name).join(', ')}`)
+    }
     return offices
   } catch (error: any) {
     console.error("❌ Error parsing offices XML:", error)

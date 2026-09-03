@@ -62,7 +62,7 @@ export function EditCategoryModal({ isOpen, onClose, category, onSuccess }: Edit
       const data = await response.json()
       if (data.columns && Array.isArray(data.columns)) {
         setColumns(data.columns)
-        console.log("Заредени колони ����т базата данни:", data.columns)
+        console.log("Заредени колони от базата данни:", data.columns)
       }
     } catch (error) {
       console.error("Error fetching schema:", error)
@@ -89,7 +89,7 @@ export function EditCategoryModal({ isOpen, onClose, category, onSuccess }: Edit
     setFormData((prev) => (prev ? { ...prev, [name]: value } : null))
   }
 
-  // Тестване на вр��зката с базата данни
+  // Тестване на връзката с базата данни
   const testDbConnection = async () => {
     try {
       setDebugInfo("Тестване на връзката с базата данни...")
@@ -215,7 +215,7 @@ export function EditCategoryModal({ isOpen, onClose, category, onSuccess }: Edit
           setDebugInfo("Категорията е обновена, но не можахме да потвърдим промените в базата данни.")
         }
 
-        // Затваряне на модалн��я прозорец след кратко забавяне
+        // Затваряне на модалния прозорец след кратко забавяне
         setTimeout(() => {
           onSuccess()
           onClose()

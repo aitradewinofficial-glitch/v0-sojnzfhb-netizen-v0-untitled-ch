@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { sql } from "@/lib/db"
+import { applyMaterialUsage } from "@/lib/supply"
 
 export async function POST(request: NextRequest) {
   try {
@@ -39,6 +40,10 @@ export async function POST(request: NextRequest) {
     `
 
     console.log("[v0] Production created successfully:", result[0])
+
+    // Автоматично намаляване на наличностите за изразходените материали
+    await applyMaterialUsage(productId, Number(quantity))
+
     return NextResponse.json({ success: true, id: result[0].id })
   } catch (error) {
     console.error("[v0] Error creating production:", error)
@@ -55,11 +60,21 @@ export async function GET(request: NextRequest) {
     if (employeeId) {
       query = sql`
         SELECT 
-          p.*,
+          p.id,
+          p.employee_id,
+          p.production_line_id,
+          p.partner_employee_id,
+          p.quantity,
+          p.production_date,
+          p.notes,
+          p.created_at,
+          p.updated_at,
+          COALESCE(p.processed, false) as processed,
           e.name as employee_name,
           pl.name as production_line_name,
           pe.name as partner_name,
-          COALESCE(np.title, pp.name, p.product_name) as product_name
+          COALESCE(np.title, pp.name, p.product_name) as product_name,
+          p.product_name as product_key
         FROM productions p
         JOIN employees e ON p.employee_id = e.id
         JOIN production_lines pl ON p.production_line_id = pl.id
@@ -72,11 +87,21 @@ export async function GET(request: NextRequest) {
     } else {
       query = sql`
         SELECT 
-          p.*,
+          p.id,
+          p.employee_id,
+          p.production_line_id,
+          p.partner_employee_id,
+          p.quantity,
+          p.production_date,
+          p.notes,
+          p.created_at,
+          p.updated_at,
+          COALESCE(p.processed, false) as processed,
           e.name as employee_name,
           pl.name as production_line_name,
           pe.name as partner_name,
-          COALESCE(np.title, pp.name, p.product_name) as product_name
+          COALESCE(np.title, pp.name, p.product_name) as product_name,
+          p.product_name as product_key
         FROM productions p
         JOIN employees e ON p.employee_id = e.id
         JOIN production_lines pl ON p.production_line_id = pl.id

@@ -16,13 +16,15 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { getCategoryById, getSubcategories, getProductsByCategory } from "@/lib/data"
-import { getActiveQuantityPromotionForSubcategory } from "@/lib/db"
+import { getActiveQuantityPromotionForSubcategory, getBatchProductRatings } from "@/lib/db"
 import { SiteHeader } from "@/components/site-header"
 import { CategoriesNavbar } from "@/components/categories-navbar"
 import { getUser } from "@/lib/auth"
 import { ProductCard } from "@/components/product-card"
 import { CategoryFilterPanel } from "@/components/category-filter-panel"
 import { SubcategoryImage } from "@/components/images"
+import { StickyBottomNav } from "@/components/sticky-bottom-nav"
+import { slugify } from "@/lib/utils"
 
 // Force dynamic rendering to ensure fresh data
 export const dynamic = "force-dynamic"
@@ -52,26 +54,34 @@ export default async function EnglishCategoryPage({
   params,
   searchParams,
 }: {
-  params: { id: string }
-  searchParams: { subcategory?: string; minPrice?: string; maxPrice?: string; sort?: string }
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ subcategory?: string; minPrice?: string; maxPrice?: string; sort?: string }>
 }) {
-  console.log("[EnglishCategoryPage] Rendering. Category ID:", params.id, "Search Params:", searchParams)
+  const { id } = await params
+  const searchParamsResolved = await searchParams
+  console.log("[EnglishCategoryPage] Rendering. Category ID:", id, "Search Params:", searchParamsResolved)
 
   try {
-    if (!params.id) {
+    if (!id) {
       console.error("[EnglishCategoryPage] Category ID is required but not provided.")
       throw new Error("Category ID is required")
     }
 
-    const categoryId = params.id
-    const subcategoryId = searchParams.subcategory
-    console.log(`[EnglishCategoryPage] Current categoryId: ${categoryId}, subcategoryId: ${subcategoryId}`)
+    const subcategoryId = searchParamsResolved.subcategory
+    console.log(`[EnglishCategoryPage] Current category param: ${id}, subcategoryId: ${subcategoryId}`)
 
-    const [category, subcategories, allCategories, user, productsByCategory] = await Promise.all([
-      getCategoryById(categoryId),
-      getSubcategories(categoryId),
+    // Resolve the category first (param may be a Document ID or a name slug),
+    // then use the real Document ID for all downstream lookups.
+    const [category, allCategories, user] = await Promise.all([
+      getCategoryById(id),
       getSubcategories(), // For SiteHeader
       getUser(),
+    ])
+
+    const categoryId = category?.id ?? id
+
+    const [subcategories, productsByCategory] = await Promise.all([
+      getSubcategories(categoryId),
       getProductsByCategory(categoryId),
     ])
 
@@ -94,6 +104,8 @@ export default async function EnglishCategoryPage({
     }
 
     const categoryTitle = getEnglishTitle(category)
+    // Human-readable slug (English title) used for all internal category links.
+    const categorySlug = slugify(categoryTitle) || categoryId
     console.log("[EnglishCategoryPage] Fetched category:", categoryTitle)
     console.log(
       `[EnglishCategoryPage] Found ${productsByCategory.length} products for category ${categoryId} initially.`,
@@ -106,8 +118,8 @@ export default async function EnglishCategoryPage({
       console.log(`[EnglishCategoryPage] Filtered by subcategory ${subcategoryId}: ${filteredProducts.length} products`)
     }
 
-    const minPriceParam = searchParams.minPrice ? Number.parseFloat(searchParams.minPrice) : undefined
-    const maxPriceParam = searchParams.maxPrice ? Number.parseFloat(searchParams.maxPrice) : undefined
+    const minPriceParam = searchParamsResolved.minPrice ? Number.parseFloat(searchParamsResolved.minPrice) : undefined
+    const maxPriceParam = searchParamsResolved.maxPrice ? Number.parseFloat(searchParamsResolved.maxPrice) : undefined
 
     if (minPriceParam !== undefined) {
       filteredProducts = filteredProducts.filter((product) => {
@@ -125,7 +137,7 @@ export default async function EnglishCategoryPage({
       console.log(`[EnglishCategoryPage] Filtered by maxPrice ${maxPriceParam}: ${filteredProducts.length} products`)
     }
 
-    const sortOption = searchParams.sort || "title-asc"
+    const sortOption = searchParamsResolved.sort || "title-asc"
     // Sorting logic using English titles
     switch (sortOption) {
       case "title-asc":
@@ -197,6 +209,10 @@ export default async function EnglishCategoryPage({
           }
         : "No products to display",
     )
+
+    // Fetch ratings for all products
+    const productIds = productsToDisplay.map((p) => p.objectid)
+    const ratingsMap = await getBatchProductRatings(productIds)
 
     const getCategoryIcon = (categoryTitle: string) => {
       const iconMap: Record<string, React.ReactNode> = {
@@ -285,13 +301,9 @@ export default async function EnglishCategoryPage({
     })
 
     return (
-      <div className="min-h-screen bg-gray-100 text-gray-800">
-        <div className="bg-gray-700">
-          <SiteHeader categories={[]} subcategories={allCategories} currentCategoryId={categoryId} isEnglish={true} />
-        </div>
-        <div className="bg-gray-600">
-          <CategoriesNavbar currentCategoryId={categoryId} isEnglish={true} />
-        </div>
+      <div className="min-h-screen bg-gray-100 text-gray-800 pb-20 md:pb-0">
+        <SiteHeader categories={[]} subcategories={allCategories} currentCategoryId={categoryId} isEnglish={true} />
+        <CategoriesNavbar currentCategoryId={categoryId} isEnglish={true} />
 
         <section className="relative py-6 bg-white border-b border-gray-200">
           <div className="container mx-auto px-4">
@@ -321,53 +333,105 @@ export default async function EnglishCategoryPage({
         </section>
 
         {subcategoriesWithEnglishTitles.length > 0 && (
-          <section className="py-6 bg-white border-b border-gray-200">
+          <section className="py-8 md:py-10 bg-white border-b border-gray-100">
             <div className="container mx-auto px-4">
-              <h2 className="text-xl font-bold mb-4 text-gray-800">Subcategories</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-lg md:text-xl font-semibold text-gray-900">Subcategories</h2>
+                <span className="text-sm text-gray-500 hidden md:block">{subcategoriesWithEnglishTitles.length} subcategories</span>
+              </div>
+              
+              {/* Mobile: Horizontal scroll */}
+              <div className="flex gap-3 overflow-x-auto pb-4 md:hidden scrollbar-hide">
                 <Link
-                  href={`/en/category/${categoryId}`}
-                  className={`flex flex-col items-center p-3 rounded-lg border ${
-                    !subcategoryId ? "border-red-500 bg-red-50" : "border-gray-200 hover:bg-gray-50"
+                  href={`/en/category/${categorySlug}`}
+                  className={`flex-shrink-0 flex flex-col items-center p-3 rounded-xl min-w-[100px] transition-all duration-200 ${
+                    !subcategoryId 
+                      ? "bg-red-600 shadow-lg shadow-red-600/20" 
+                      : "bg-gray-50 hover:bg-gray-100"
                   }`}
                 >
-                  <div className="w-16 h-16 flex items-center justify-center bg-white rounded-full mb-2">
+                  <div className={`w-14 h-14 flex items-center justify-center rounded-xl mb-2 ${
+                    !subcategoryId ? "bg-white/20" : "bg-white"
+                  }`}>
                     {getCategoryIcon(categoryTitle)}
                   </div>
-                  <span
-                    className={`text-sm text-center ${!subcategoryId ? "font-medium text-red-600" : "text-gray-700"}`}
-                  >
+                  <span className={`text-xs font-medium text-center ${!subcategoryId ? "text-white" : "text-gray-700"}`}>
                     All
                   </span>
                 </Link>
-                {subcategoriesWithEnglishTitles.map((subcategory) => {
-                  return (
-                    <Link
-                      key={subcategory.id}
-                      href={`/en/category/${categoryId}?subcategory=${subcategory.id}`}
-                      className={`flex flex-col items-center p-3 rounded-lg border ${
-                        subcategory.id === subcategoryId
-                          ? "border-red-500 bg-red-50"
-                          : "border-gray-200 hover:bg-gray-50"
-                      }`}
-                    >
-                      <div className="w-16 h-16 flex items-center justify-center bg-white rounded-full mb-2">
-                        <SubcategoryImage
-                          src={subcategory.photourl || getCategoryImage(category)}
-                          alt={subcategory.displayTitle}
-                          fallback={getCategoryIcon(categoryTitle)}
-                        />
-                      </div>
-                      <span
-                        className={`text-sm text-center ${
-                          subcategory.id === subcategoryId ? "font-medium text-red-600" : "text-gray-700"
-                        }`}
-                      >
-                        {subcategory.displayTitle}
-                      </span>
-                    </Link>
-                  )
-                })}
+                {subcategoriesWithEnglishTitles.map((subcategory) => (
+                  <Link
+                    key={subcategory.id}
+                    href={`/en/category/${categorySlug}?subcategory=${subcategory.id}`}
+                    className={`flex-shrink-0 flex flex-col items-center p-3 rounded-xl min-w-[100px] transition-all duration-200 ${
+                      subcategory.id === subcategoryId 
+                        ? "bg-red-600 shadow-lg shadow-red-600/20" 
+                        : "bg-gray-50 hover:bg-gray-100"
+                    }`}
+                  >
+                    <div className={`w-14 h-14 flex items-center justify-center rounded-xl mb-2 overflow-hidden ${
+                      subcategory.id === subcategoryId ? "bg-white/20" : "bg-white"
+                    }`}>
+                      <SubcategoryImage
+                        src={subcategory.photourl || getCategoryImage(category)}
+                        alt={subcategory.displayTitle}
+                        fallback={getCategoryIcon(categoryTitle)}
+                      />
+                    </div>
+                    <span className={`text-xs font-medium text-center line-clamp-2 ${
+                      subcategory.id === subcategoryId ? "text-white" : "text-gray-700"
+                    }`}>
+                      {subcategory.displayTitle}
+                    </span>
+                  </Link>
+                ))}
+              </div>
+
+              {/* Desktop: Grid layout with cards */}
+              <div className="hidden md:grid grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+                <Link
+                  href={`/en/category/${categorySlug}`}
+                  className={`group flex flex-col items-center p-4 rounded-xl border transition-all duration-200 ${
+                    !subcategoryId 
+                      ? "bg-red-50 border-red-500 shadow-sm" 
+                      : "bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm"
+                  }`}
+                >
+                  <div className={`w-12 h-12 flex items-center justify-center rounded-lg mb-3 ${
+                    !subcategoryId ? "bg-red-100" : "bg-gray-50"
+                  }`}>
+                    {getCategoryIcon(categoryTitle)}
+                  </div>
+                  <span className={`text-sm font-medium text-center ${!subcategoryId ? "text-red-600" : "text-gray-700"}`}>
+                    All
+                  </span>
+                </Link>
+                {subcategoriesWithEnglishTitles.map((subcategory) => (
+                  <Link
+                    key={subcategory.id}
+                    href={`/en/category/${categorySlug}?subcategory=${subcategory.id}`}
+                    className={`group flex flex-col items-center p-4 rounded-xl border transition-all duration-200 ${
+                      subcategory.id === subcategoryId 
+                        ? "bg-red-50 border-red-500 shadow-sm" 
+                        : "bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm"
+                    }`}
+                  >
+                    <div className={`w-12 h-12 flex items-center justify-center rounded-lg mb-3 overflow-hidden ${
+                      subcategory.id === subcategoryId ? "bg-red-100" : "bg-gray-50"
+                    }`}>
+                      <SubcategoryImage
+                        src={subcategory.photourl || getCategoryImage(category)}
+                        alt={subcategory.displayTitle}
+                        fallback={getCategoryIcon(categoryTitle)}
+                      />
+                    </div>
+                    <span className={`text-sm font-medium text-center line-clamp-2 ${
+                      subcategory.id === subcategoryId ? "text-red-600" : "text-gray-700"
+                    }`}>
+                      {subcategory.displayTitle}
+                    </span>
+                  </Link>
+                ))}
               </div>
             </div>
           </section>
@@ -376,12 +440,12 @@ export default async function EnglishCategoryPage({
         <section className="py-4 bg-gray-50">
           <div className="container mx-auto px-4">
             <CategoryFilterPanel
-              categoryId={categoryId}
+              categoryId={categorySlug}
               subcategories={subcategoriesWithEnglishTitles}
               currentSubcategoryId={subcategoryId}
-              minPrice={searchParams.minPrice}
-              maxPrice={searchParams.maxPrice}
-              sortOption={searchParams.sort || "title-asc"}
+                minPrice={searchParamsResolved.minPrice}
+                maxPrice={searchParamsResolved.maxPrice}
+                sortOption={searchParamsResolved.sort || "title-asc"}
               isEnglish={true}
             />
           </div>
@@ -397,6 +461,8 @@ export default async function EnglishCategoryPage({
 
                   // Only use English description - no fallback
                   const productDescription = product.description_en || ""
+                  
+                  const rating = ratingsMap.get(product.objectid)
 
                   return (
                     <ProductCard
@@ -408,6 +474,10 @@ export default async function EnglishCategoryPage({
                       retailerprice={product.retailerprice ? Number(product.retailerprice) : undefined}
                       wholesalerprice={product.wholesalerprice ? Number(product.wholesalerprice) : undefined}
                       europe_price={product.europe_price ? Number(product.europe_price) : undefined}
+                      price_eur={product.price_eur ? Number(product.price_eur) : undefined}
+                      retailerprice_eur={product.retailerprice_eur ? Number(product.retailerprice_eur) : undefined}
+                      wholesalerprice_eur={product.wholesalerprice_eur ? Number(product.wholesalerprice_eur) : undefined}
+                      europe_price_eur={product.europe_price_eur ? Number(product.europe_price_eur) : undefined}
                       photourl={normalizeImageUrl(product.photourl)}
                       isLoggedIn={isLoggedIn}
                       customerType={user?.customerType}
@@ -418,6 +488,8 @@ export default async function EnglishCategoryPage({
                       promo_free_qty={product.promo_free_qty}
                       promo_description={product.promo_description}
                       isEnglish={true}
+                      averageRating={rating?.average_rating}
+                      reviewCount={rating?.review_count}
                     />
                   )
                 })}
@@ -432,13 +504,16 @@ export default async function EnglishCategoryPage({
                 </p>
                 {subcategoryId && (
                   <Button asChild className="bg-red-600 hover:bg-red-700 text-white">
-                    <Link href={`/en/category/${categoryId}`}>All products in category</Link>
+                    <Link href={`/en/category/${categorySlug}`}>All products in category</Link>
                   </Button>
                 )}
               </div>
             )}
           </div>
         </section>
+
+        {/* Sticky Bottom Navigation - Mobile only */}
+        <StickyBottomNav isEnglish={true} />
       </div>
     )
   } catch (error) {

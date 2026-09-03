@@ -122,8 +122,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
   console.log(`[API DELETE /api/admin/customers/${params.id}] Received DELETE request. Target ID: ${params.id}`)
   try {
     const result = await sql`
-      UPDATE customers
-      SET deleted = true
+      DELETE FROM customers
       WHERE ("Document ID" = ${params.id} OR objectid = ${params.id})
       RETURNING "Document ID"
     `
@@ -139,8 +138,8 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
     console.log(`[API DELETE /api/admin/customers/${params.id}] Path revalidated. Sending success response.`)
     return NextResponse.json({ success: true, deletedCustomerId: result[0] ? result[0]["Document ID"] : null })
   } catch (error) {
-    console.error(`[API DELETE /api/admin/customers/${params.id}] Error during deactivation:`, error)
+    console.error(`[API DELETE /api/admin/customers/${params.id}] Error during deletion:`, error)
     const errorMessage = error instanceof Error ? error.message : "Неизвестна грешка"
-    return NextResponse.json({ error: "Грешка при деактивиране на клиента", details: errorMessage }, { status: 500 })
+    return NextResponse.json({ error: "Грешка при изтриване на клиента", details: errorMessage }, { status: 500 })
   }
 }

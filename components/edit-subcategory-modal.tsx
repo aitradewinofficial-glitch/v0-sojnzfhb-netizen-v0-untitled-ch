@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2, Save, AlertTriangle } from "lucide-react"
 import { ImageUpload } from "@/components/image-upload"
+import { SeoFields } from "@/components/seo-fields"
 import { useToast } from "@/components/ui/use-toast"
 
 interface SubcategoryForModal {
@@ -194,6 +195,10 @@ export function EditSubcategoryModal({
     setTimeout(() => {
       setError(null)
     }, 5000)
+  }
+
+  const handleSeoFieldChange = (name: string, value: string | null) => {
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -518,7 +523,15 @@ export function EditSubcategoryModal({
                 </div>
               </div>
 
-              {/* Dynamic Fields from Database Schema */}
+              {/* SEO Fields Section */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <SeoFields
+                  formData={formData}
+                  onChange={handleSeoFieldChange}
+                />
+              </div>
+
+              {/* Dynamic Fields from Database Schema - excludes SEO fields */}
               {Array.isArray(tableSchema) && tableSchema.length > 0 && (
                 <div className="bg-gray-50 p-4 rounded-lg">
                   <h3 className="text-lg font-semibold mb-4 text-gray-800">Допълнителни полета от базата данни</h3>
@@ -535,7 +548,7 @@ export function EditSubcategoryModal({
                             "deleted",
                             "createdat",
                             "updatedat",
-                          ].includes(col.column_name),
+                          ].includes(col.column_name) && !col.column_name.startsWith("seo_"),
                       )
                       .map((col) => (
                         <div key={col.column_name} className="space-y-1">

@@ -4,3 +4,49 @@ import { twMerge } from "tailwind-merge"
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
+
+/**
+ * Converts a product title into a URL-friendly slug.
+ * e.g. "HS # 12" -> "hs-12", "Swivel Hooked Snap" -> "swivel-hooked-snap"
+ * Keeps unicode letters/numbers (incl. Cyrillic) and collapses everything else into dashes.
+ * The normalization here MUST stay in sync with the SQL used in getProductById.
+ */
+export function slugify(input: string | null | undefined): string {
+  if (!input) return ""
+  return String(input)
+    .normalize("NFC")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, "-")
+    .replace(/^-+|-+$/g, "")
+}
+
+/**
+ * Builds a product page URL from its title, falling back to the id when the
+ * title produces an empty slug (e.g. a title made only of symbols).
+ */
+export function productHref(title: string | null | undefined, id: string, isEnglish = false): string {
+  const slug = slugify(title) || id
+  return isEnglish ? `/en/product/${slug}` : `/product/${slug}`
+}
+
+/**
+ * Builds a subcategory page URL from its title, falling back to the id when the
+ * title produces an empty slug. Mirrors productHref so subcategory URLs use a
+ * human-readable slug (e.g. "/subcategory/микро-pop-up-6-8-mm") instead of a
+ * raw Document ID. The normalization MUST stay in sync with getSubcategoryById.
+ */
+export function subcategoryHref(title: string | null | undefined, id: string, isEnglish = false): string {
+  const slug = slugify(title) || id
+  return isEnglish ? `/en/subcategory/${slug}` : `/subcategory/${slug}`
+}
+
+/**
+ * Builds a category page URL from its title, falling back to the id when the
+ * title produces an empty slug. Mirrors productHref/subcategoryHref so category
+ * URLs use a human-readable slug (e.g. "/category/аксесоари") instead of a raw
+ * Document ID. The normalization MUST stay in sync with getCategoryById.
+ */
+export function categoryHref(title: string | null | undefined, id: string, isEnglish = false): string {
+  const slug = slugify(title) || id
+  return isEnglish ? `/en/category/${slug}` : `/category/${slug}`
+}

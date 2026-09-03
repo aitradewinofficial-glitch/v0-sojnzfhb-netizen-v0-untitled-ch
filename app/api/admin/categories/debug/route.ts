@@ -1,10 +1,16 @@
 import { NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 
-const sql = neon(process.env.DATABASE_URL!)
-
-export async function GET(request: Request) {
+export async function GET() {
   try {
+    if (!process.env.DATABASE_URL) {
+      return NextResponse.json(
+        { success: false, error: "DATABASE_URL is not configured" },
+        { status: 503 },
+      )
+    }
+
+    const sql = neon(process.env.DATABASE_URL)
     // Проверка на структурата на таблицата
     const tableInfo = await sql`
       SELECT column_name, data_type, is_nullable 

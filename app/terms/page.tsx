@@ -9,7 +9,7 @@ export default async function TermsPage() {
   return (
     <div className="min-h-screen bg-white">
       <SiteHeader categories={categories} subcategories={subcategories} isEnglish={false} />
-      <CategoriesNavbar categories={categories} isEnglish={false} />
+      <CategoriesNavbar categories={categories} subcategories={subcategories} isEnglish={false} />
 
       <main className="container mx-auto px-4">
         <div className="py-6 md:py-8">

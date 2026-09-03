@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     } catch (dbError: any) {
       console.error("API /admin/categories/delete - Грешка при проверка на съществуваща категория:", dbError)
       return NextResponse.json(
-        { success: false, error: "Грешка в базата данни пр�� проверка на категорията.", details: dbError.message },
+        { success: false, error: "Грешка в базата данни при проверка на категорията.", details: dbError.message },
         { status: 500 },
       )
     }

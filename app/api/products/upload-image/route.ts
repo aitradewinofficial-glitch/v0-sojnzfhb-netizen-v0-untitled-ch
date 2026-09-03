@@ -40,7 +40,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       }
     }
 
-    return NextResponse.json({ success: true, url: imageUrl })
+    return NextResponse.json({ success: true, url: imageUrl, imageUrl: imageUrl })
   } catch (error) {
     console.error("Error uploading product image:", error)
     const errorMessage = error instanceof Error ? error.message : "Failed to upload product image"

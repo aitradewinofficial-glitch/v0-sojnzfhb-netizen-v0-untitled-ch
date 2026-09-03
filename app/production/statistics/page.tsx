@@ -25,6 +25,7 @@ import {
   CalendarIcon,
   DollarSign,
   ChevronRight,
+  Package,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -52,6 +53,12 @@ interface WeeklyStats {
     dailyTarget: number
     dailyPrices: { [date: string]: number }
   }[]
+}
+
+const BGN_TO_EUR = 1.95583
+
+function toEur(bgn: number): number {
+  return bgn / BGN_TO_EUR
 }
 
 export default function ProductionStatistics() {
@@ -633,7 +640,7 @@ export default function ProductionStatistics() {
                               </div>
                             </td>
                             <td className="text-center p-2 sm:p-4 text-xs sm:text-sm font-medium text-gray-600">
-                              {employee.baseSalary.toFixed(2)} лв
+                              {toEur(employee.baseSalary).toFixed(2)} €
                             </td>
                             {weeklyStats.workingDays.map((date) => {
                               const salary = employee.dailySalaries[date] || 0
@@ -645,7 +652,7 @@ export default function ProductionStatistics() {
                                   <span
                                     className={`${getSalaryColor(salary, employee.baseSalary)} font-bold text-xs sm:text-sm`}
                                   >
-                                    {salary.toFixed(2)} лв
+                                    {toEur(salary).toFixed(2)} €
                                   </span>
                                 </td>
                               )
@@ -656,7 +663,7 @@ export default function ProductionStatistics() {
                               <span
                                 className={`${getSalaryColor(employee.weeklySalary, employee.baseSalary * 7)} text-sm sm:text-base lg:text-lg`}
                               >
-                                {employee.weeklySalary.toFixed(2)} лв
+                                {toEur(employee.weeklySalary).toFixed(2)} €
                               </span>
                             </td>
                           </tr>
@@ -772,7 +779,7 @@ export default function ProductionStatistics() {
                                           }
                                           className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline"
                                         >
-                                          {dayPrice.toFixed(2)} лв
+                                          {toEur(dayPrice).toFixed(2)} €
                                         </button>
                                       )}
                                     </div>
@@ -783,7 +790,7 @@ export default function ProductionStatistics() {
                                           {daySale.quantity} бр
                                         </div>
                                         <div className="text-xs sm:text-sm font-bold text-amber-600">
-                                          {daySale.value.toFixed(2)} лв
+                                          {toEur(daySale.value).toFixed(2)} €
                                         </div>
                                       </>
                                     ) : (
@@ -808,7 +815,7 @@ export default function ProductionStatistics() {
                             return (
                               <td key={date} className="text-center p-2 sm:p-4 border-l border-gray-100">
                                 <div className="text-sm sm:text-base font-bold text-amber-700">
-                                  {dailyTotal > 0 ? `${dailyTotal.toFixed(2)} лв` : "-"}
+                                  {dailyTotal > 0 ? `${toEur(dailyTotal).toFixed(2)} €` : "-"}
                                 </div>
                               </td>
                             )
@@ -832,7 +839,7 @@ export default function ProductionStatistics() {
             )}
 
             {weeklyStats.employees.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mt-6 sm:mt-8">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6 mt-6 sm:mt-8">
                 <Card className="shadow-lg border-0 bg-gradient-to-br from-green-50 to-emerald-50">
                   <CardContent className="p-4 sm:p-6">
                     <div className="text-center">
@@ -882,7 +889,7 @@ export default function ProductionStatistics() {
                           </p>
                         </div>
                         <p className="text-2xl sm:text-3xl font-bold text-amber-600">
-                          {Math.max(...weeklyStats.employees.map((e) => e.weeklySalary)).toFixed(0)} лв
+                          {toEur(Math.max(...weeklyStats.employees.map((e) => e.weeklySalary))).toFixed(0)} €
                         </p>
                       </div>
                     </CardContent>
@@ -906,6 +913,28 @@ export default function ProductionStatistics() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {isAdmin && weeklyStats.productSales && weeklyStats.productSales.length > 0 && (
+                  <Card className="shadow-lg border-0 bg-gradient-to-br from-teal-50 to-cyan-50">
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="text-center">
+                        <div className="flex items-center justify-center mb-2">
+                          <Package className="h-5 w-5 sm:h-6 sm:w-6 text-teal-600 mr-2" />
+                          <p className="text-xs sm:text-sm font-bold text-teal-700 uppercase tracking-wide">
+                            <span className="hidden sm:inline">Седмично производство</span>
+                            <span className="sm:hidden">Седмично</span>
+                          </p>
+                        </div>
+                        <p className="text-2xl sm:text-3xl font-bold text-teal-600">
+                          {weeklyStats.productSales.reduce((sum, p) => sum + p.totalQuantity, 0).toLocaleString("bg-BG")} бр
+                        </p>
+                        <p className="text-xs sm:text-sm text-teal-600 font-medium mt-1">
+                          {toEur(weeklyStats.productSales.reduce((sum, p) => sum + p.totalValue, 0)).toFixed(2)} €
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             ) : (
               <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">

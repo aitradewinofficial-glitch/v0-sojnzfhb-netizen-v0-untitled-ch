@@ -252,15 +252,35 @@ export async function getProductById(id: string) {
     console.error("LIB/DB.TS: getProductById - Product ID is undefined or null.")
     return null
   }
+  // Route params can arrive percent-encoded (e.g. Cyrillic slugs like
+  // "%D0%BC%D0%B5%D1%82..." for "метален-..."). Decode defensively so slug
+  // matching compares against the human-readable slug, not the encoded bytes.
+  let decodedId = id
   try {
-    let result = await executeQueryWithRetry(`SELECT * FROM new_products WHERE "Document ID" = $1`, [id])
+    decodedId = decodeURIComponent(id)
+  } catch {
+    // Leave decodedId as-is if the value isn't a valid encoded sequence.
+  }
+  try {
+    let result = await executeQueryWithRetry(`SELECT * FROM new_products WHERE "Document ID" = $1`, [decodedId])
     if (result.length === 0) {
-      result = await executeQueryWithRetry(`SELECT * FROM new_products WHERE objectid = $1`, [id])
+      result = await executeQueryWithRetry(`SELECT * FROM new_products WHERE objectid = $1`, [decodedId])
     }
-    if (result.length === 0 && id) {
+    if (result.length === 0 && decodedId) {
       result = await executeQueryWithRetry(
         `SELECT * FROM new_products WHERE LOWER(title) = LOWER($1) ORDER BY createdat DESC LIMIT 1`,
-        [id.toLowerCase()],
+        [decodedId.toLowerCase()],
+      )
+    }
+    // Resolve by slugified title (e.g. "hs-12" -> "HS # 12", "метален-живарник-38-см" -> "Метален живарник 38 см").
+    // The normalization below MUST stay in sync with slugify() in lib/utils.ts.
+    if (result.length === 0 && decodedId) {
+      result = await executeQueryWithRetry(
+        `SELECT * FROM new_products
+         WHERE LOWER(REGEXP_REPLACE(REGEXP_REPLACE(title, '[^[:alnum:]]+', '-', 'g'), '(^-+|-+$)', '', 'g')) = $1
+            OR LOWER(REGEXP_REPLACE(REGEXP_REPLACE(COALESCE(title_en, ''), '[^[:alnum:]]+', '-', 'g'), '(^-+|-+$)', '', 'g')) = $1
+         ORDER BY createdat DESC LIMIT 1`,
+        [decodedId.toLowerCase()],
       )
     }
     return result[0] || null
@@ -366,6 +386,28 @@ LIMIT 1
   } catch (error) {
     console.error(`LIB/DB.TS: Error fetching customer with phone ${phone}:`, error)
     return null
+  }
+}
+
+// Брой регистрирани рибари за магазина на даден клиент (по телефон)
+export async function getFishermenCountByPhone(phone: string): Promise<number> {
+  if (!dbInitialized || !phone) return 0
+  try {
+    const result: any[] = await sql.query(
+      `SELECT COUNT(*)::int AS count
+       FROM fishermen f
+       JOIN customers c ON f.customer_id = c."Document ID"
+       WHERE c.phone = $1`,
+      [phone],
+    )
+    if (Array.isArray(result) && result.length > 0) {
+      return Number(result[0].count) || 0
+    }
+    return 0
+  } catch (error) {
+    // Таблицата може все още да не съществува – връщаме 0 без да чупим таблото.
+    console.log("LIB/DB.TS: getFishermenCountByPhone - could not count (table may not exist yet).")
+    return 0
   }
 }
 
@@ -856,14 +898,24 @@ export async function getHomePageImages() {
   }
   try {
     const result = await executeQueryWithRetry(`
-      SELECT id, image_url, is_active, created_at
+      SELECT id, image_url, is_active, sort_order, link_url, created_at
       FROM home_page_image
-      ORDER BY created_at DESC
+      ORDER BY sort_order ASC, created_at DESC
     `)
     return result || []
   } catch (error) {
     console.error("LIB/DB.TS: Error fetching home page images:", error)
-    return []
+    // Fallback without sort_order/link_url columns
+    try {
+      const fallback = await executeQueryWithRetry(`
+        SELECT id, image_url, is_active, created_at
+        FROM home_page_image
+        ORDER BY created_at DESC
+      `)
+      return (fallback || []).map((r: any) => ({ ...r, sort_order: 0, link_url: null }))
+    } catch {
+      return []
+    }
   }
 }
 
@@ -1254,10 +1306,10 @@ export async function getActiveQuantityPromotionForSubcategory(
 }
 
 export async function updateHomePageImageUrl(id: number, newUrl: string) {
-  console.log(`LIB/DB.TS: updateHomePageImageUrl called. id: ${id}, newUrl: ${newUrl}, dbInitialized: ${dbInitialized}`)
+console.log(`LIB/DB.TS: updateHomePageImageUrl called. id: ${id}, newUrl: ${newUrl}, dbInitialized: ${dbInitialized}`)
   if (!dbInitialized) {
-    console.error("LIB/DB.TS: updateHomePageImageUrl - Database not initialized.")
-    return { success: false, error: "Database not initialized" }
+console.error("LIB/DB.TS: updateHomePageImageUrl - Database not initialized.")
+  return { success: false, error: "Database not initialized" }
   }
   try {
     await executeQueryWithRetry(`UPDATE home_page_image SET image_url = $1 WHERE id = $2`, [newUrl, id])
@@ -1265,6 +1317,80 @@ export async function updateHomePageImageUrl(id: number, newUrl: string) {
   } catch (error) {
     console.error(`LIB/DB.TS: Error updating home page image URL for id ${id}:`, error)
     return { success: false, error: "Failed to update image URL" }
+  }
+}
+
+// Hero Banner Carousel functions
+export async function getHeroBanners() {
+  console.log(`LIB/DB.TS: getHeroBanners called. dbInitialized: ${dbInitialized}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: getHeroBanners - Database not initialized.")
+    return []
+  }
+  try {
+    const result = await executeQueryWithRetry(`
+      SELECT id, image_url, is_active, sort_order, link_url, created_at
+      FROM home_page_image
+      WHERE is_active = true
+      ORDER BY sort_order ASC, created_at DESC
+    `)
+    return result || []
+  } catch (error) {
+    console.error("LIB/DB.TS: Error fetching hero banners:", error)
+    // Fallback: try without sort_order/link_url columns (pre-migration)
+    try {
+      const fallbackResult = await executeQueryWithRetry(`
+        SELECT id, image_url, is_active, created_at
+        FROM home_page_image
+        WHERE is_active = true
+        ORDER BY created_at DESC
+      `)
+      return (fallbackResult || []).map((r: any) => ({ ...r, sort_order: 0, link_url: null }))
+    } catch {
+      return []
+    }
+  }
+}
+
+export async function toggleBannerActive(id: number, isActive: boolean) {
+  console.log(`LIB/DB.TS: toggleBannerActive called. id: ${id}, isActive: ${isActive}`)
+  if (!dbInitialized) {
+    return { success: false, error: "Database not initialized" }
+  }
+  try {
+    await executeQueryWithRetry(`UPDATE home_page_image SET is_active = $1 WHERE id = $2`, [isActive, id])
+    return { success: true }
+  } catch (error) {
+    console.error("LIB/DB.TS: Error toggling banner active:", error)
+    return { success: false, error: "Failed to toggle banner" }
+  }
+}
+
+export async function updateBannerSortOrder(id: number, sortOrder: number) {
+  console.log(`LIB/DB.TS: updateBannerSortOrder called. id: ${id}, sortOrder: ${sortOrder}`)
+  if (!dbInitialized) {
+    return { success: false, error: "Database not initialized" }
+  }
+  try {
+    await executeQueryWithRetry(`UPDATE home_page_image SET sort_order = $1 WHERE id = $2`, [sortOrder, id])
+    return { success: true }
+  } catch (error) {
+    console.error("LIB/DB.TS: Error updating banner sort order:", error)
+    return { success: false, error: "Failed to update sort order" }
+  }
+}
+
+export async function updateBannerLinkUrl(id: number, linkUrl: string | null) {
+  console.log(`LIB/DB.TS: updateBannerLinkUrl called. id: ${id}, linkUrl: ${linkUrl}`)
+  if (!dbInitialized) {
+    return { success: false, error: "Database not initialized" }
+  }
+  try {
+    await executeQueryWithRetry(`UPDATE home_page_image SET link_url = $1 WHERE id = $2`, [linkUrl, id])
+    return { success: true }
+  } catch (error) {
+    console.error("LIB/DB.TS: Error updating banner link URL:", error)
+    return { success: false, error: "Failed to update link URL" }
   }
 }
 
@@ -1330,5 +1456,856 @@ export async function getTableSchema(tableName: string) {
   } catch (error) {
     console.error(`LIB/DB.TS: Error fetching schema for table ${tableName}:`, error)
     return { columns: [] }
+  }
+}
+
+// Product Reviews
+export interface ProductReview {
+  id: number
+  product_id: string
+  rating: number
+  reviewer_name: string | null
+  reviewer_email: string | null
+  review_text: string | null
+  is_approved: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface ProductRatingSummary {
+  product_id: string
+  review_count: number
+  average_rating: number
+}
+
+export async function getProductReviews(productId: string, approvedOnly = true): Promise<ProductReview[]> {
+  console.log(`LIB/DB.TS: getProductReviews called. Product ID: ${productId}, dbInitialized: ${dbInitialized}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: getProductReviews - Database not initialized.")
+    return []
+  }
+  if (!productId) {
+    console.error("LIB/DB.TS: getProductReviews - Product ID is undefined or null.")
+    return []
+  }
+  try {
+    let query = `SELECT * FROM product_reviews WHERE product_id = $1`
+    if (approvedOnly) {
+      query += ` AND is_approved = true`
+    }
+    query += ` ORDER BY created_at DESC`
+    const result = await executeQueryWithRetry(query, [productId])
+    return result as ProductReview[]
+  } catch (error) {
+    console.error(`LIB/DB.TS: Error fetching reviews for product ${productId}:`, error)
+    return []
+  }
+}
+
+export async function getProductRatingSummary(productId: string): Promise<ProductRatingSummary | null> {
+  console.log(`LIB/DB.TS: getProductRatingSummary called. Product ID: ${productId}, dbInitialized: ${dbInitialized}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: getProductRatingSummary - Database not initialized.")
+    return null
+  }
+  if (!productId) {
+    console.error("LIB/DB.TS: getProductRatingSummary - Product ID is undefined or null.")
+    return null
+  }
+  try {
+    const result = await executeQueryWithRetry(
+      `SELECT product_id, review_count, average_rating FROM product_rating_summary WHERE product_id = $1`,
+      [productId],
+    )
+    if (result[0]) {
+      return {
+        product_id: result[0].product_id,
+        review_count: parseInt(result[0].review_count),
+        average_rating: parseFloat(result[0].average_rating),
+      }
+    }
+    return null
+  } catch (error) {
+    console.error(`LIB/DB.TS: Error fetching rating summary for product ${productId}:`, error)
+    return null
+  }
+}
+
+export async function createProductReview(
+  productId: string,
+  rating: number,
+  reviewerName?: string,
+  reviewerEmail?: string,
+  reviewText?: string,
+): Promise<ProductReview | null> {
+  console.log(`LIB/DB.TS: createProductReview called. Product ID: ${productId}, Rating: ${rating}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: createProductReview - Database not initialized.")
+    return null
+  }
+  if (!productId || rating < 1 || rating > 5) {
+    console.error("LIB/DB.TS: createProductReview - Invalid product ID or rating.")
+    return null
+  }
+  try {
+    const result = await executeQueryWithRetry(
+      `INSERT INTO product_reviews (product_id, rating, reviewer_name, reviewer_email, review_text, is_approved) 
+       VALUES ($1, $2, $3, $4, $5, true) 
+       RETURNING *`,
+      [productId, rating, reviewerName || null, reviewerEmail || null, reviewText || null],
+    )
+    return result[0] as ProductReview
+  } catch (error) {
+    console.error(`LIB/DB.TS: Error creating review for product ${productId}:`, error)
+    return null
+  }
+}
+
+export async function updateProductReviewApproval(reviewId: number, isApproved: boolean): Promise<boolean> {
+  console.log(`LIB/DB.TS: updateProductReviewApproval called. Review ID: ${reviewId}, Approved: ${isApproved}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: updateProductReviewApproval - Database not initialized.")
+    return false
+  }
+  try {
+    await executeQueryWithRetry(
+      `UPDATE product_reviews SET is_approved = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $1`,
+      [reviewId, isApproved],
+    )
+    return true
+  } catch (error) {
+    console.error(`LIB/DB.TS: Error updating review approval ${reviewId}:`, error)
+    return false
+  }
+}
+
+export async function deleteProductReview(reviewId: number): Promise<boolean> {
+  console.log(`LIB/DB.TS: deleteProductReview called. Review ID: ${reviewId}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: deleteProductReview - Database not initialized.")
+    return false
+  }
+  try {
+    await executeQueryWithRetry(`DELETE FROM product_reviews WHERE id = $1`, [reviewId])
+    return true
+  } catch (error) {
+    console.error(`LIB/DB.TS: Error deleting review ${reviewId}:`, error)
+    return false
+  }
+}
+
+export async function getAllReviews(page = 1, limit = 20): Promise<{ reviews: ProductReview[]; total: number }> {
+  console.log(`LIB/DB.TS: getAllReviews called. Page: ${page}, Limit: ${limit}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: getAllReviews - Database not initialized.")
+    return { reviews: [], total: 0 }
+  }
+  try {
+    const offset = (page - 1) * limit
+    const countResult = await executeQueryWithRetry(`SELECT COUNT(*) as count FROM product_reviews`)
+    const total = parseInt(countResult[0]?.count || "0")
+    
+    const result = await executeQueryWithRetry(
+      `SELECT * FROM product_reviews ORDER BY created_at DESC LIMIT $1 OFFSET $2`,
+      [limit, offset],
+    )
+    return { reviews: result as ProductReview[], total }
+  } catch (error) {
+    console.error("LIB/DB.TS: Error fetching all reviews:", error)
+    return { reviews: [], total: 0 }
+  }
+}
+
+export async function updateProductReview(
+  reviewId: number,
+  rating: number,
+  reviewerName?: string,
+  reviewText?: string,
+  isApproved?: boolean,
+): Promise<boolean> {
+  console.log(`LIB/DB.TS: updateProductReview called. Review ID: ${reviewId}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: updateProductReview - Database not initialized.")
+    return false
+  }
+  try {
+    await executeQueryWithRetry(
+      `UPDATE product_reviews 
+       SET rating = $2, reviewer_name = $3, review_text = $4, is_approved = $5, updated_at = CURRENT_TIMESTAMP 
+       WHERE id = $1`,
+      [reviewId, rating, reviewerName || null, reviewText || null, isApproved ?? true],
+    )
+    return true
+  } catch (error) {
+    console.error(`LIB/DB.TS: Error updating review ${reviewId}:`, error)
+    return false
+  }
+}
+
+export async function getBatchProductRatings(productIds: string[]): Promise<Map<string, ProductRatingSummary>> {
+  console.log(`LIB/DB.TS: getBatchProductRatings called. Product count: ${productIds.length}`)
+  const ratingsMap = new Map<string, ProductRatingSummary>()
+  
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: getBatchProductRatings - Database not initialized.")
+    return ratingsMap
+  }
+  
+  if (productIds.length === 0) {
+    return ratingsMap
+  }
+  
+  try {
+    const placeholders = productIds.map((_, i) => `$${i + 1}`).join(", ")
+    const result = await executeQueryWithRetry(
+      `SELECT product_id, review_count, average_rating 
+       FROM product_rating_summary 
+       WHERE product_id IN (${placeholders})`,
+      productIds,
+    )
+    
+    for (const row of result) {
+      ratingsMap.set(row.product_id, {
+        product_id: row.product_id,
+        review_count: parseInt(row.review_count),
+        average_rating: parseFloat(row.average_rating),
+      })
+    }
+    
+    return ratingsMap
+  } catch (error) {
+    console.error("LIB/DB.TS: Error fetching batch product ratings:", error)
+    return ratingsMap
+  }
+}
+
+// News functions
+export async function getNews(activeOnly = true) {
+  console.log(`LIB/DB.TS: getNews called. activeOnly: ${activeOnly}, dbInitialized: ${dbInitialized}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: getNews - Database not initialized.")
+    return []
+  }
+  try {
+    const whereClause = activeOnly ? "WHERE is_active = true" : ""
+    const result = await executeQueryWithRetry(`
+      SELECT * FROM news
+      ${whereClause}
+      ORDER BY sort_order ASC, created_at DESC
+    `)
+    return result || []
+  } catch (error) {
+    console.error("LIB/DB.TS: Error fetching news:", error)
+    return []
+  }
+}
+
+export async function getNewsById(id: number) {
+  console.log(`LIB/DB.TS: getNewsById called. ID: ${id}, dbInitialized: ${dbInitialized}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: getNewsById - Database not initialized.")
+    return null
+  }
+  try {
+    const result = await executeQueryWithRetry(
+      `SELECT * FROM news WHERE id = $1`,
+      [id]
+    )
+    return result[0] || null
+  } catch (error) {
+    console.error(`LIB/DB.TS: Error fetching news ${id}:`, error)
+    return null
+  }
+}
+
+export async function getNewsBySlug(slug: string) {
+  console.log(`LIB/DB.TS: getNewsBySlug called. Slug: ${slug}, dbInitialized: ${dbInitialized}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: getNewsBySlug - Database not initialized.")
+    return null
+  }
+  try {
+    // Try to find by slug first, if slug column exists
+    const result = await executeQueryWithRetry(
+      `SELECT * FROM news WHERE slug = $1 AND is_active = true`,
+      [slug]
+    )
+    if (result && result[0]) return result[0]
+    
+    // Fallback: try to find by ID if slug is numeric
+    const numericId = parseInt(slug, 10)
+    if (!isNaN(numericId)) {
+      const byIdResult = await executeQueryWithRetry(
+        `SELECT * FROM news WHERE id = $1 AND is_active = true`,
+        [numericId]
+      )
+      return byIdResult[0] || null
+    }
+    
+    return null
+  } catch (error) {
+    // If slug column doesn't exist, try by ID
+    const numericId = parseInt(slug, 10)
+    if (!isNaN(numericId)) {
+      try {
+        const byIdResult = await executeQueryWithRetry(
+          `SELECT * FROM news WHERE id = $1 AND is_active = true`,
+          [numericId]
+        )
+        return byIdResult[0] || null
+      } catch {
+        console.error(`LIB/DB.TS: Error fetching news by slug/id ${slug}:`, error)
+        return null
+      }
+    }
+    console.error(`LIB/DB.TS: Error fetching news by slug ${slug}:`, error)
+    return null
+  }
+}
+
+export async function createNews(data: {
+  title: string
+  title_en?: string
+  summary?: string
+  summary_en?: string
+  content?: string
+  content_en?: string
+  image_url?: string
+  link_url?: string
+  is_active?: boolean
+  is_featured?: boolean
+  sort_order?: number
+  slug?: string
+  meta_title?: string
+  meta_title_en?: string
+  meta_description?: string
+  meta_description_en?: string
+  meta_keywords?: string
+  meta_keywords_en?: string
+  content_blocks?: any[]
+  content_blocks_en?: any[]
+  related_products?: string[]
+  gallery_images?: string[]
+}) {
+  console.log(`LIB/DB.TS: createNews called. dbInitialized: ${dbInitialized}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: createNews - Database not initialized.")
+    return null
+  }
+  try {
+    const result = await executeQueryWithRetry(
+      `INSERT INTO news (title, title_en, summary, summary_en, content, content_en, image_url, link_url, 
+                         is_active, is_featured, sort_order, slug, meta_title, meta_title_en, 
+                         meta_description, meta_description_en, meta_keywords, meta_keywords_en,
+                         content_blocks, content_blocks_en, related_products, gallery_images)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+       RETURNING *`,
+      [
+        data.title,
+        data.title_en || null,
+        data.summary || null,
+        data.summary_en || null,
+        data.content || null,
+        data.content_en || null,
+        data.image_url || null,
+        data.link_url || null,
+        data.is_active ?? true,
+        data.is_featured ?? false,
+        data.sort_order ?? 0,
+        data.slug || null,
+        data.meta_title || null,
+        data.meta_title_en || null,
+        data.meta_description || null,
+        data.meta_description_en || null,
+        data.meta_keywords || null,
+        data.meta_keywords_en || null,
+        JSON.stringify(data.content_blocks || []),
+        JSON.stringify(data.content_blocks_en || []),
+        JSON.stringify(data.related_products || []),
+        JSON.stringify(data.gallery_images || []),
+      ]
+    )
+    return result[0] || null
+  } catch (error) {
+    console.error("LIB/DB.TS: Error creating news:", error)
+    return null
+  }
+}
+
+export async function updateNews(
+  id: number,
+  data: {
+    title?: string
+    title_en?: string
+    summary?: string
+    summary_en?: string
+    content?: string
+    content_en?: string
+    image_url?: string
+    link_url?: string
+    is_active?: boolean
+    is_featured?: boolean
+    sort_order?: number
+    slug?: string
+    meta_title?: string
+    meta_title_en?: string
+    meta_description?: string
+    meta_description_en?: string
+    meta_keywords?: string
+    meta_keywords_en?: string
+    content_blocks?: any[]
+    content_blocks_en?: any[]
+    related_products?: string[]
+    gallery_images?: string[]
+  }
+) {
+  console.log(`LIB/DB.TS: updateNews called. ID: ${id}, dbInitialized: ${dbInitialized}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: updateNews - Database not initialized.")
+    return null
+  }
+  try {
+    const fields: string[] = []
+    const values: any[] = []
+    let paramIndex = 1
+
+    if (data.title !== undefined) {
+      fields.push(`title = $${paramIndex++}`)
+      values.push(data.title)
+    }
+    if (data.title_en !== undefined) {
+      fields.push(`title_en = $${paramIndex++}`)
+      values.push(data.title_en)
+    }
+    if (data.summary !== undefined) {
+      fields.push(`summary = $${paramIndex++}`)
+      values.push(data.summary)
+    }
+    if (data.summary_en !== undefined) {
+      fields.push(`summary_en = $${paramIndex++}`)
+      values.push(data.summary_en)
+    }
+    if (data.content !== undefined) {
+      fields.push(`content = $${paramIndex++}`)
+      values.push(data.content)
+    }
+    if (data.content_en !== undefined) {
+      fields.push(`content_en = $${paramIndex++}`)
+      values.push(data.content_en)
+    }
+    if (data.image_url !== undefined) {
+      fields.push(`image_url = $${paramIndex++}`)
+      values.push(data.image_url)
+    }
+    if (data.link_url !== undefined) {
+      fields.push(`link_url = $${paramIndex++}`)
+      values.push(data.link_url)
+    }
+    if (data.is_active !== undefined) {
+      fields.push(`is_active = $${paramIndex++}`)
+      values.push(data.is_active)
+    }
+    if (data.is_featured !== undefined) {
+      fields.push(`is_featured = $${paramIndex++}`)
+      values.push(data.is_featured)
+    }
+    if (data.sort_order !== undefined) {
+      fields.push(`sort_order = $${paramIndex++}`)
+      values.push(data.sort_order)
+    }
+    if (data.slug !== undefined) {
+      fields.push(`slug = $${paramIndex++}`)
+      values.push(data.slug)
+    }
+    if (data.meta_title !== undefined) {
+      fields.push(`meta_title = $${paramIndex++}`)
+      values.push(data.meta_title)
+    }
+    if (data.meta_title_en !== undefined) {
+      fields.push(`meta_title_en = $${paramIndex++}`)
+      values.push(data.meta_title_en)
+    }
+    if (data.meta_description !== undefined) {
+      fields.push(`meta_description = $${paramIndex++}`)
+      values.push(data.meta_description)
+    }
+    if (data.meta_description_en !== undefined) {
+      fields.push(`meta_description_en = $${paramIndex++}`)
+      values.push(data.meta_description_en)
+    }
+    if (data.meta_keywords !== undefined) {
+      fields.push(`meta_keywords = $${paramIndex++}`)
+      values.push(data.meta_keywords)
+    }
+    if (data.meta_keywords_en !== undefined) {
+      fields.push(`meta_keywords_en = $${paramIndex++}`)
+      values.push(data.meta_keywords_en)
+    }
+    if (data.content_blocks !== undefined) {
+      fields.push(`content_blocks = $${paramIndex++}`)
+      values.push(JSON.stringify(data.content_blocks))
+    }
+    if (data.content_blocks_en !== undefined) {
+      fields.push(`content_blocks_en = $${paramIndex++}`)
+      values.push(JSON.stringify(data.content_blocks_en))
+    }
+    if (data.related_products !== undefined) {
+      fields.push(`related_products = $${paramIndex++}`)
+      values.push(JSON.stringify(data.related_products))
+    }
+    if (data.gallery_images !== undefined) {
+      fields.push(`gallery_images = $${paramIndex++}`)
+      values.push(JSON.stringify(data.gallery_images))
+    }
+
+    fields.push(`updated_at = CURRENT_TIMESTAMP`)
+    values.push(id)
+
+    const result = await executeQueryWithRetry(
+      `UPDATE news SET ${fields.join(", ")} WHERE id = $${paramIndex} RETURNING *`,
+      values
+    )
+    return result[0] || null
+  } catch (error) {
+    console.error(`LIB/DB.TS: Error updating news ${id}:`, error)
+    return null
+  }
+}
+
+export async function deleteNews(id: number) {
+  console.log(`LIB/DB.TS: deleteNews called. ID: ${id}, dbInitialized: ${dbInitialized}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: deleteNews - Database not initialized.")
+    return false
+  }
+  try {
+    await executeQueryWithRetry(`DELETE FROM news WHERE id = $1`, [id])
+    return true
+  } catch (error) {
+    console.error(`LIB/DB.TS: Error deleting news ${id}:`, error)
+    return false
+  }
+}
+
+// SEO Settings
+export interface SeoSettings {
+  id?: number
+  page_key: string
+  meta_title?: string
+  meta_description?: string
+  meta_keywords?: string
+  og_title?: string
+  og_description?: string
+  og_image?: string
+  og_image_width?: number
+  og_image_height?: number
+  og_type?: string
+  og_site_name?: string
+  og_locale?: string
+  og_url?: string
+  twitter_card?: string
+  twitter_title?: string
+  twitter_description?: string
+  twitter_image?: string
+  twitter_site?: string
+  twitter_creator?: string
+  canonical_url?: string
+  robots?: string
+  author?: string
+  schema_type?: string
+  schema_name?: string
+  schema_description?: string
+  schema_logo?: string
+  schema_same_as?: string[]
+  schema_address_locality?: string
+  schema_address_region?: string
+  schema_address_country?: string
+  schema_postal_code?: string
+  schema_street_address?: string
+  schema_telephone?: string
+  schema_email?: string
+  hreflang_en?: string
+  hreflang_bg?: string
+  google_site_verification?: string
+  bing_site_verification?: string
+  yandex_verification?: string
+  theme_color?: string
+  background_color?: string
+  ga_tracking_id?: string
+  gtm_id?: string
+  fb_pixel_id?: string
+  created_at?: string
+  updated_at?: string
+}
+
+export async function getSeoSettings(pageKey: string = 'homepage'): Promise<SeoSettings | null> {
+  console.log(`LIB/DB.TS: getSeoSettings called. pageKey: ${pageKey}, dbInitialized: ${dbInitialized}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: getSeoSettings - Database not initialized.")
+    return null
+  }
+  try {
+    const result = await executeQueryWithRetry(
+      `SELECT * FROM seo_settings WHERE page_key = $1`,
+      [pageKey]
+    )
+    return result[0] || null
+  } catch (error) {
+    console.error(`LIB/DB.TS: Error fetching SEO settings for ${pageKey}:`, error)
+    return null
+  }
+}
+
+export async function updateSeoSettings(pageKey: string, data: Partial<SeoSettings>): Promise<{ success: boolean; data?: SeoSettings; error?: string }> {
+  console.log(`LIB/DB.TS: updateSeoSettings called. pageKey: ${pageKey}, dbInitialized: ${dbInitialized}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: updateSeoSettings - Database not initialized.")
+    return { success: false, error: "Database not initialized" }
+  }
+  try {
+    const fields: string[] = []
+    const values: any[] = []
+    let paramIndex = 1
+
+    // Build dynamic update query
+    const updateableFields = [
+      'meta_title', 'meta_description', 'meta_keywords',
+      'og_title', 'og_description', 'og_image', 'og_image_width', 'og_image_height',
+      'og_type', 'og_site_name', 'og_locale', 'og_url',
+      'twitter_card', 'twitter_title', 'twitter_description', 'twitter_image',
+      'twitter_site', 'twitter_creator',
+      'canonical_url', 'robots', 'author',
+      'schema_type', 'schema_name', 'schema_description', 'schema_logo',
+      'schema_same_as', 'schema_address_locality', 'schema_address_region',
+      'schema_address_country', 'schema_postal_code', 'schema_street_address',
+      'schema_telephone', 'schema_email',
+      'hreflang_en', 'hreflang_bg',
+      'google_site_verification', 'bing_site_verification', 'yandex_verification',
+      'theme_color', 'background_color',
+      'ga_tracking_id', 'gtm_id', 'fb_pixel_id'
+    ]
+
+    for (const field of updateableFields) {
+      if (data[field as keyof SeoSettings] !== undefined) {
+        fields.push(`${field} = $${paramIndex++}`)
+        const value = data[field as keyof SeoSettings]
+        // Handle array fields
+        if (Array.isArray(value)) {
+          values.push(value)
+        } else {
+          values.push(value)
+        }
+      }
+    }
+
+    if (fields.length === 0) {
+      return { success: false, error: "No fields to update" }
+    }
+
+    fields.push(`updated_at = NOW()`)
+    values.push(pageKey)
+
+    const result = await executeQueryWithRetry(
+      `UPDATE seo_settings SET ${fields.join(", ")} WHERE page_key = $${paramIndex} RETURNING *`,
+      values
+    )
+
+    if (result.length === 0) {
+      // Insert if doesn't exist
+      const insertResult = await executeQueryWithRetry(
+        `INSERT INTO seo_settings (page_key) VALUES ($1) RETURNING *`,
+        [pageKey]
+      )
+      // Then update
+      return updateSeoSettings(pageKey, data)
+    }
+
+    return { success: true, data: result[0] }
+  } catch (error) {
+    console.error(`LIB/DB.TS: Error updating SEO settings for ${pageKey}:`, error)
+    return { success: false, error: String(error) }
+  }
+}
+
+// Product FAQs
+export interface ProductFAQ {
+  id: string
+  product_id: string
+  question: string
+  question_en?: string
+  answer: string
+  answer_en?: string
+  display_order: number
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
+export async function getProductFAQs(productId: string): Promise<ProductFAQ[]> {
+  console.log(`LIB/DB.TS: getProductFAQs called. productId: ${productId}, dbInitialized: ${dbInitialized}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: getProductFAQs - Database not initialized.")
+    return []
+  }
+  try {
+    const result = await executeQueryWithRetry(
+      `SELECT * FROM product_faqs 
+       WHERE product_id = $1 AND is_active = true 
+       ORDER BY display_order ASC, created_at ASC`,
+      [productId]
+    )
+    return result || []
+  } catch (error) {
+    console.error(`LIB/DB.TS: Error fetching FAQs for product ${productId}:`, error)
+    return []
+  }
+}
+
+export async function getAllProductFAQs(productId: string): Promise<ProductFAQ[]> {
+  console.log(`LIB/DB.TS: getAllProductFAQs called. productId: ${productId}, dbInitialized: ${dbInitialized}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: getAllProductFAQs - Database not initialized.")
+    return []
+  }
+  try {
+    const result = await executeQueryWithRetry(
+      `SELECT * FROM product_faqs 
+       WHERE product_id = $1 
+       ORDER BY display_order ASC, created_at ASC`,
+      [productId]
+    )
+    return result || []
+  } catch (error) {
+    console.error(`LIB/DB.TS: Error fetching all FAQs for product ${productId}:`, error)
+    return []
+  }
+}
+
+export async function addProductFAQ(
+  productId: string,
+  question: string,
+  answer: string,
+  questionEn?: string,
+  answerEn?: string,
+  displayOrder: number = 0
+): Promise<ProductFAQ | null> {
+  console.log(`LIB/DB.TS: addProductFAQ called. productId: ${productId}, dbInitialized: ${dbInitialized}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: addProductFAQ - Database not initialized.")
+    return null
+  }
+  try {
+    const result = await executeQueryWithRetry(
+      `INSERT INTO product_faqs (product_id, question, question_en, answer, answer_en, display_order, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, true)
+       RETURNING *`,
+      [productId, question, questionEn || null, answer, answerEn || null, displayOrder]
+    )
+    return result[0] || null
+  } catch (error) {
+    console.error(`LIB/DB.TS: Error adding FAQ for product ${productId}:`, error)
+    return null
+  }
+}
+
+export async function updateProductFAQ(
+  faqId: string,
+  question: string,
+  answer: string,
+  questionEn?: string,
+  answerEn?: string,
+  displayOrder?: number,
+  isActive?: boolean
+): Promise<ProductFAQ | null> {
+  console.log(`LIB/DB.TS: updateProductFAQ called. faqId: ${faqId}, dbInitialized: ${dbInitialized}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: updateProductFAQ - Database not initialized.")
+    return null
+  }
+  try {
+    const fields: string[] = []
+    const values: any[] = []
+    let paramIndex = 1
+
+    fields.push(`question = $${paramIndex++}`)
+    values.push(question)
+    
+    fields.push(`answer = $${paramIndex++}`)
+    values.push(answer)
+    
+    fields.push(`question_en = $${paramIndex++}`)
+    values.push(questionEn || null)
+    
+    fields.push(`answer_en = $${paramIndex++}`)
+    values.push(answerEn || null)
+    
+    if (displayOrder !== undefined) {
+      fields.push(`display_order = $${paramIndex++}`)
+      values.push(displayOrder)
+    }
+    
+    if (isActive !== undefined) {
+      fields.push(`is_active = $${paramIndex++}`)
+      values.push(isActive)
+    }
+
+    fields.push(`updated_at = NOW()`)
+    values.push(faqId)
+
+    const result = await executeQueryWithRetry(
+      `UPDATE product_faqs SET ${fields.join(", ")} WHERE id = $${paramIndex} RETURNING *`,
+      values
+    )
+    return result[0] || null
+  } catch (error) {
+    console.error(`LIB/DB.TS: Error updating FAQ ${faqId}:`, error)
+    return null
+  }
+}
+
+export async function deleteProductFAQ(faqId: string): Promise<boolean> {
+  console.log(`LIB/DB.TS: deleteProductFAQ called. faqId: ${faqId}, dbInitialized: ${dbInitialized}`)
+  if (!dbInitialized) {
+    console.error("LIB/DB.TS: deleteProductFAQ - Database not initialized.")
+    return false
+  }
+  try {
+    await executeQueryWithRetry(`DELETE FROM product_faqs WHERE id = $1`, [faqId])
+    return true
+  } catch (error) {
+    console.error(`LIB/DB.TS: Error deleting FAQ ${faqId}:`, error)
+    return false
+  }
+}
+
+// Връща броя регистрирани рибари за конкретен магазин (клиент), намерен по Document ID или objectid
+export async function getFishermenCountForCustomer(customerIdentifiers: (string | null | undefined)[]): Promise<number> {
+  try {
+    const ids = customerIdentifiers.filter((v): v is string => Boolean(v && String(v).trim()))
+    if (ids.length === 0) return 0
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS fishermen (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        phone TEXT NOT NULL,
+        customer_id TEXT,
+        store_name TEXT,
+        agreed_terms BOOLEAN DEFAULT FALSE,
+        agreed_marketing BOOLEAN DEFAULT FALSE,
+        is_winner BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `
+
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(", ")
+    const result: any[] = await sql.query(
+      `SELECT COUNT(*)::int as count FROM fishermen WHERE customer_id IN (${placeholders})`,
+      ids,
+    )
+    return Array.isArray(result) && result.length > 0 ? Number(result[0].count) || 0 : 0
+  } catch (error) {
+    console.error("LIB/DB.TS: Error counting fishermen for customer:", error)
+    return 0
   }
 }

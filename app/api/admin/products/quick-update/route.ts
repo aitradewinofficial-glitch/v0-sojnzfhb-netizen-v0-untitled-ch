@@ -1,9 +1,14 @@
 import { NextResponse } from "next/server"
 import { neon } from "@neondatabase/serverless"
 
-const sql = neon(process.env.DATABASE_URL!)
+function getSql() {
+  const databaseUrl = process.env.DATABASE_URL
+  if (!databaseUrl) throw new Error("DATABASE_URL is not configured")
+  return neon(databaseUrl)
+}
 
 export async function POST(request: Request) {
+  const sql = getSql()
   console.log(`API /api/admin/products/quick-update POST handler invoked at ${new Date().toISOString()}`)
   try {
     const data = await request.json()
@@ -48,7 +53,7 @@ export async function POST(request: Request) {
       } else {
         processedValue = Number.parseFloat(String(data.value))
         if (Number.isNaN(processedValue)) {
-          // Ако парсването към float не успее, може би искаме да върнем грешка или да ��ставим null
+          // Ако парсването към float не успее, може би искаме да върнем грешка или да оставим null
           // Засега оставяме null, ако не е валидно число
           console.warn(`Could not parse float for field ${data.field}, value: ${data.value}. Setting to null.`)
           processedValue = null
@@ -89,7 +94,7 @@ export async function POST(request: Request) {
       `(type: ${typeof processedValue})`,
     )
 
-    // Първо проверяваме ��али продуктът съществува
+    // Първо проверяваме дали продуктът съществува
     const checkProduct = await sql`
       SELECT objectid FROM new_products 
       WHERE (objectid = ${String(data.id)} OR "Document ID" = ${String(data.id)}) 

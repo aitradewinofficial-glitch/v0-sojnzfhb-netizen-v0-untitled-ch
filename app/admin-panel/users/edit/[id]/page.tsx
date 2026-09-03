@@ -129,7 +129,7 @@ export default function EditCustomerPage({ params }: { params: { id: string } })
       storename: "Име на магазин",
       companyname: "Име на компания",
       phone: "Телефон",
-      marshrut: "Мар��рут",
+      marshrut: "Маршрут",
       type: "Тип клиент",
       discountpercent: "Процент отстъпка",
       password: "Парола",

@@ -1,6 +1,12 @@
 import { redirect } from "next/navigation"
 import { getUser } from "@/lib/auth"
-import { getCategories, getSubcategories, getOrdersByCustomer, getCustomerByPhone } from "@/lib/db"
+import {
+  getCategories,
+  getSubcategories,
+  getOrdersByCustomer,
+  getCustomerByPhone,
+  getFishermenCountByPhone,
+} from "@/lib/db"
 import { SiteHeader } from "@/components/site-header"
 import { CustomerDashboard, type Order } from "@/components/customer-dashboard"
 
@@ -55,12 +61,17 @@ export default async function AccountDashboardPage() {
     }
   }
 
+  let fishermenCount = 0
+  if (user.phone) {
+    fishermenCount = await getFishermenCountByPhone(user.phone)
+  }
+
   return (
     <div className="min-h-screen bg-white text-gray-900">
       {" "}
       {/* Промяна на фона и текста */}
       <SiteHeader categories={categories} subcategories={allSubcategories} />
-      <CustomerDashboard user={enrichedUser} orders={orders} />
+      <CustomerDashboard user={enrichedUser} orders={orders} fishermenCount={fishermenCount} />
     </div>
   )
 }

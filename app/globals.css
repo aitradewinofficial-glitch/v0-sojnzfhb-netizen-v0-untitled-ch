@@ -79,3 +79,19 @@
 .mobile-menu-open .mobile-call-button-container {
   display: none;
 }
+
+/* Safe area insets for iOS devices */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Add bottom padding to main content when sticky nav is visible on mobile */
+@media (max-width: 767px) {
+  .has-sticky-nav {
+    padding-bottom: 80px;
+  }
+  
+  .has-sticky-buy {
+    padding-bottom: 100px;
+  }
+}

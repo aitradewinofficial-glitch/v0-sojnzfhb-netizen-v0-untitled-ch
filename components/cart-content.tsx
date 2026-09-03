@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { EcontDeliverySelector } from "@/components/econt-delivery-selector"
+import { productHref } from "@/lib/utils"
 import {
   Trash2,
   ShoppingCart,
@@ -60,6 +61,9 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
   // Delivery options
   const [deliveryOption, setDeliveryOption] = useState<"home" | "econt">("home")
   const [selectedEcontOffice, setSelectedEcontOffice] = useState<EcontOffice | null>(null)
+  
+  // Home delivery address fields
+  const [customerCity, setCustomerCity] = useState("")
 
   // State to manage input values locally to avoid removing item on backspace
   const [inputQuantities, setInputQuantities] = useState<{ [key: string]: string }>({})
@@ -127,6 +131,11 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
     homeDelivery: isEnglish ? "Home Delivery" : "Доставка до дома",
     econtOffice: isEnglish ? "Econt Office" : "Офис на Еконт",
     selectOffice: isEnglish ? "Please select an Econt office" : "Моля, изберете офис на Еконт",
+    city: isEnglish ? "City / Town" : "Населено място",
+    cityPlaceholder: isEnglish ? "Enter your city or town" : "Въведете населеното място",
+    requiredFieldsError: isEnglish
+      ? "Please fill in all required fields (Name, Phone, City, Address)"
+      : "Моля, попълнете всички задължителни полета (Име, Телефон, Населено място, Адрес)",
   }
 
   // Effect to sync local state when items are added or removed from the cart
@@ -197,14 +206,22 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
     }
   }
 
-  const currentOriginalTotalPrice = cart.getTotalPrice() // This is sum of item.price * item.quantity
+  const currentOriginalTotalPrice = cart.getTotalPrice()
+  const currentOriginalTotalEur = cart.items.reduce((total, item) => {
+    const paidQuantity = Math.max(0, item.quantity - (item.freeItems || 0))
+    return total + (item.eurPrice ?? convertBgnToEur(item.price)) * paidQuantity
+  }, 0)
   const discountPercent = currentUser?.discountPercent || 0
   let currentDiscountAmount = 0
+  let currentDiscountAmountEur = 0
   let currentFinalTotalPrice = currentOriginalTotalPrice
+  let currentFinalTotalEur = currentOriginalTotalEur
 
   if (currentUser && discountPercent > 0) {
     currentDiscountAmount = currentOriginalTotalPrice * (discountPercent / 100)
+    currentDiscountAmountEur = currentOriginalTotalEur * (discountPercent / 100)
     currentFinalTotalPrice = currentOriginalTotalPrice - currentDiscountAmount
+    currentFinalTotalEur = currentOriginalTotalEur - currentDiscountAmountEur
   }
 
   const handleSubmitInquiry = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -230,9 +247,24 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
       return
     }
 
+    // Validate required fields for home delivery
+    if (deliveryOption === "home") {
+      const missingFields =
+        !customerName.trim() || !customerPhone.trim() || !customerCity.trim() || !additionalInfo.trim()
+      if (missingFields) {
+        toast({
+          title: t.requiredFieldsError,
+          variant: "destructive",
+        })
+        setIsSubmitting(false)
+        return
+      }
+    }
+
     const orderData = {
       customerName: (customerName || "").trim(),
       customerPhone: (customerPhone || "").trim(),
+      customerCity: deliveryOption === "home" ? (customerCity || "").trim() : "",
       additionalInfo: (additionalInfo || "").trim(),
       totalAmount: Number.parseFloat(currentFinalTotalPrice.toFixed(2)),
       originalTotalPrice: Number.parseFloat(currentOriginalTotalPrice.toFixed(2)),
@@ -366,7 +398,7 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
       <>
         <div>
           <Label htmlFor="customerName" className="text-sm font-medium text-gray-700">
-            {t.nameCompany}
+            {t.nameCompany} <span className="text-red-500">*</span>
           </Label>
           <Input
             id="customerName"
@@ -379,7 +411,7 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
         </div>
         <div>
           <Label htmlFor="customerPhone" className="text-sm font-medium text-gray-700">
-            {t.phone}
+            {t.phone} <span className="text-red-500">*</span>
           </Label>
           <Input
             id="customerPhone"
@@ -425,12 +457,19 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
     )
   }
 
-  const currencySymbol = isEuropean ? "€" : isEnglish ? "$" : "лв."
+  // Conversion rate BGN to EUR
+  const convertBgnToEur = (bgnPrice: number): number => {
+    return bgnPrice / 1.96
+  }
+
+  const formatPrice = (value: number): string => {
+    return value.toFixed(2)
+  }
 
   return (
     <>
       <h1 className="text-3xl font-bold mb-8 text-gray-800">{t.title}</h1>
-      <div className="grid lg:grid-cols-3 gap-8 items-start">
+      <div className="grid lg:grid-cols-5 gap-8 items-start">
         <div className="lg:col-span-2 space-y-6">
           {cart.items.map((item) => (
             <div
@@ -452,11 +491,12 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
               )}
               <div className="flex-grow">
                 <h3 className="font-semibold text-xl text-gray-800">
-                  <Link href={isEnglish ? `/en/product/${item.id}` : `/product/${item.id}`}>{item.title}</Link>
+                        <Link href={productHref(item.title, item.id, isEnglish)}>{item.title}</Link>
                 </h3>
-                <p className="text-md text-gray-700 mt-1">
-                  {t.price}: {item.price.toFixed(2)} {currencySymbol}
-                </p>
+                <div className="text-md text-gray-700 mt-1">
+                  <span className="font-semibold text-lg">{formatPrice(item.eurPrice ?? convertBgnToEur(item.price))} €</span>
+                  <span className="text-sm text-gray-500 ml-2">({formatPrice(item.price)} лв.)</span>
+                </div>
                 {item.promo_buy_qty && typeof item.promo_free_qty === "number" && (
                   <p className="text-xs text-green-600 font-medium mt-1 bg-green-50 px-2 py-1 rounded-md inline-block">
                     {t.promo} {item.promo_buy_qty}, {t.take} {item.promo_free_qty} {t.free}
@@ -502,7 +542,7 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
           ))}
         </div>
 
-        <div className="sticky top-28">
+        <div className="lg:col-span-3 sticky top-28">
           <div className="bg-white p-6 rounded-xl shadow-xl border">
             <h2 className="text-2xl font-semibold mb-5 text-gray-800">{t.summary}</h2>
             <div className="space-y-3 mb-5 text-gray-700">
@@ -519,30 +559,33 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
                 </div>
               )}
               <hr className="my-1" />
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span>{t.subtotal}:</span>
-                <span className="font-medium">
-                  {currentOriginalTotalPrice.toFixed(2)} {currencySymbol}
-                </span>
+                <div className="text-right">
+                  <span className="font-semibold">{formatPrice(currentOriginalTotalEur)} €</span>
+                  <span className="text-sm text-gray-500 ml-2">({formatPrice(currentOriginalTotalPrice)} лв.)</span>
+                </div>
               </div>
               {currentDiscountAmount > 0 && (
                 <>
-                  <div className="flex justify-between text-green-600">
+                  <div className="flex justify-between items-center text-green-600">
                     <span>
                       {t.discount} ({discountPercent}%):
                     </span>
-                    <span className="font-medium">
-                      -{currentDiscountAmount.toFixed(2)} {currencySymbol}
-                    </span>
+                    <div className="text-right">
+                      <span className="font-semibold">-{formatPrice(currentDiscountAmountEur)} €</span>
+                      <span className="text-sm text-green-500 ml-2">(-{formatPrice(currentDiscountAmount)} лв.)</span>
+                    </div>
                   </div>
                   <hr className="my-1 border-dashed" />
                 </>
               )}
-              <div className="flex justify-between font-bold text-xl text-gray-800">
-                <span>{t.finalTotal}:</span>
-                <span>
-                  {currentFinalTotalPrice.toFixed(2)} {currencySymbol}
-                </span>
+              <div className="flex justify-between items-center font-bold text-gray-800">
+                <span className="text-xl">{t.finalTotal}:</span>
+                <div className="text-right">
+                  <span className="text-2xl">{formatPrice(currentFinalTotalEur)} €</span>
+                  <span className="text-base font-medium text-gray-500 ml-2">({formatPrice(currentFinalTotalPrice)} лв.)</span>
+                </div>
               </div>
             </div>
             <p className="text-xs text-gray-500 mb-6">{t.pricesIncludeVAT}</p>
@@ -598,19 +641,35 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
             <form onSubmit={handleSubmitInquiry} className="space-y-4">
               {deliveryOption === "home" && renderCustomerForm()}
               {deliveryOption === "home" && (
-                <div>
-                  <Label htmlFor="additionalInfo" className="text-sm font-medium text-gray-700">
-                    {t.additionalInfo}
-                  </Label>
-                  <Textarea
-                    id="additionalInfo"
-                    value={additionalInfo}
-                    onChange={(e) => setAdditionalInfo(e.target.value)}
-                    rows={3}
-                    placeholder={t.additionalInfoPlaceholder}
-                    className="mt-1"
-                  />
-                </div>
+                <>
+                  <div>
+                    <Label htmlFor="customerCity" className="text-sm font-medium text-gray-700">
+                      {t.city} <span className="text-red-500">*</span>
+                    </Label>
+                    <Input
+                      id="customerCity"
+                      value={customerCity}
+                      onChange={(e) => setCustomerCity(e.target.value)}
+                      required
+                      className="mt-1"
+                      placeholder={t.cityPlaceholder}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="additionalInfo" className="text-sm font-medium text-gray-700">
+                      {t.additionalInfo} <span className="text-red-500">*</span>
+                    </Label>
+                    <Textarea
+                      id="additionalInfo"
+                      value={additionalInfo}
+                      onChange={(e) => setAdditionalInfo(e.target.value)}
+                      required
+                      rows={3}
+                      placeholder={t.additionalInfoPlaceholder}
+                      className="mt-1"
+                    />
+                  </div>
+                </>
               )}
               <Button
                 type="submit"
@@ -621,7 +680,8 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
                   isLoadingUser ||
                   (deliveryOption === "econt" && !selectedEcontOffice) ||
                   (deliveryOption === "econt" && (!customerName.trim() || !customerPhone.trim())) ||
-                  (deliveryOption === "home" && (!customerName.trim() || !customerPhone.trim()))
+                  (deliveryOption === "home" &&
+                    (!customerName.trim() || !customerPhone.trim() || !customerCity.trim() || !additionalInfo.trim()))
                 }
               >
                 {isSubmitting ? <Loader2 className="h-5 w-5 mr-2 animate-spin" /> : <Send className="h-5 w-5 mr-2" />}
@@ -638,6 +698,14 @@ export function CartContent({ isEnglish = false }: CartContentProps) {
                     : "Моля, попълнете данните си в прозореца за офиса по-горе"}
                 </p>
               )}
+              {deliveryOption === "home" &&
+                (!customerName.trim() || !customerPhone.trim() || !customerCity.trim() || !additionalInfo.trim()) && (
+                  <p className="text-sm text-amber-600 text-center mt-2">
+                    {isEnglish
+                      ? "Please fill in all required fields marked with *"
+                      : "Моля, попълнете всички задължителни полета, маркирани с *"}
+                  </p>
+                )}
             </form>
           </div>
         </div>

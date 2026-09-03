@@ -9,7 +9,7 @@ import { ProductionForm } from "@/components/production-form"
 import { EditProductionForm } from "@/components/edit-production-form"
 import { getCurrentEmployee, logout } from "@/lib/production-auth"
 import { toast } from "sonner"
-import { Plus, LogOut, Edit, Trash2, Factory, Calendar, User, Package, ClipboardList, CalendarIcon, X, Shield, Eye, EyeOff, Menu } from 'lucide-react'
+import { Plus, LogOut, Edit, Trash2, Factory, Calendar, User, Package, ClipboardList, CalendarIcon, X, Shield, Eye, EyeOff, Menu, Check } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Calendar as CalendarComponent } from "@/components/ui/calendar"
 import { format } from "date-fns"
@@ -24,11 +24,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Checkbox } from "@/components/ui/checkbox"
 
 interface Production {
   id: number
   employee_id: number
   product_name: string
+  product_key?: string
   quantity: number
   production_date: string
   notes: string
@@ -37,6 +39,7 @@ interface Production {
   partner_name: string
   created_at: string
   partner_employee_id?: number | null // Added for partner employee ID
+  processed: boolean // Added for processed status
 }
 
 interface ProductionLine {
@@ -194,6 +197,39 @@ export function ProductionDashboard({ initialProductions, productionLines, partn
     return currentEmployee && (production.employee_id === currentEmployee.id || production.partner_employee_id === currentEmployee.id)
   }
 
+  const toggleProcessed = async (productionId: number, currentProcessed: boolean) => {
+    const newProcessed = !currentProcessed
+    
+    // Optimistic update
+    setProductions(prev => 
+      prev.map(p => p.id === productionId ? { ...p, processed: newProcessed } : p)
+    )
+    
+    try {
+      const response = await fetch(`/api/productions/${productionId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ processed: newProcessed }),
+      })
+
+      if (!response.ok) {
+        // Revert on error
+        setProductions(prev => 
+          prev.map(p => p.id === productionId ? { ...p, processed: currentProcessed } : p)
+        )
+        toast.error("Грешка при запазване на статуса")
+      }
+    } catch (error) {
+      // Revert on error
+      setProductions(prev => 
+        prev.map(p => p.id === productionId ? { ...p, processed: currentProcessed } : p)
+      )
+      toast.error("Грешка при запазване на статуса")
+    }
+  }
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("bg-BG")
   }
@@ -212,6 +248,26 @@ export function ProductionDashboard({ initialProductions, productionLines, partn
         )
       })
     : displayedProductions
+
+  // Group productions by date
+  const groupProductionsByDate = (productions: Production[]) => {
+    const groups: { [key: string]: Production[] } = {}
+    productions.forEach((p) => {
+      const dateKey = new Date(p.production_date).toDateString()
+      if (!groups[dateKey]) {
+        groups[dateKey] = []
+      }
+      groups[dateKey].push(p)
+    })
+    // Sort dates descending (newest first)
+    const sortedKeys = Object.keys(groups).sort((a, b) => new Date(b).getTime() - new Date(a).getTime())
+    return sortedKeys.map(key => ({
+      date: key,
+      productions: groups[key]
+    }))
+  }
+
+  const groupedProductions = groupProductionsByDate(filteredProductions)
 
   const handleAdminLogin = () => {
     if (adminUsername === "ilian" && adminPassword === "ilian123") {
@@ -570,74 +626,125 @@ export function ProductionDashboard({ initialProductions, productionLines, partn
                     : "Няма ваши производства"}
               </div>
             ) : (
-              <div className="space-y-3 sm:space-y-4">
-                {filteredProductions.map((production) => (
-                  <div key={production.id} className="p-3 sm:p-4 border rounded-lg bg-amber-50 border-amber-200">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2 flex-wrap">
-                          <h3 className="font-semibold text-sm sm:text-base lg:text-lg">{production.product_name}</h3>
-                          {production.employee_id === currentEmployee.id ? (
-                            <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs">
-                              Мое
-                            </Badge>
-                          ) : production.partner_employee_id === currentEmployee.id ? (
-                            <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
-                              Партньор
-                            </Badge>
-                          ) : (
-                            showAllProductions && (
-                              <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
-                                {production.employee_name}
-                              </Badge>
-                            )
-                          )}
-                        </div>
+              <div className="space-y-6">
+                {groupedProductions.map((group) => (
+                  <div key={group.date} className="space-y-3">
+                    {/* Date Header */}
+                    <div className="flex items-center gap-2 py-2 border-b border-amber-300">
+                      <Calendar className="h-4 w-4 text-amber-600" />
+                      <h3 className="font-semibold text-amber-800 text-sm sm:text-base">
+                        {format(new Date(group.date), "EEEE, dd MMMM yyyy", { locale: bg })}
+                      </h3>
+                      <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs">
+                        {group.productions.length} {group.productions.length === 1 ? "запис" : "записа"}
+                      </Badge>
+                    </div>
+                    
+                    {/* Productions for this date */}
+                    <div className="space-y-3 sm:space-y-4">
+                      {group.productions.map((production) => {
+                        const isProcessed = production.processed
+                        return (
+                          <div 
+                            key={production.id} 
+                            className={`p-3 sm:p-4 border rounded-lg transition-all ${
+                              isProcessed 
+                                ? "bg-green-50 border-green-300 opacity-75" 
+                                : "bg-amber-50 border-amber-200"
+                            }`}
+                          >
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                  <h3 className={`font-semibold text-sm sm:text-base lg:text-lg ${isProcessed ? "line-through text-gray-500" : ""}`}>
+                                    {production.product_name}
+                                  </h3>
+                                  {isProcessed && (
+                                    <Badge variant="secondary" className="bg-green-100 text-green-800 text-xs">
+                                      <Check className="h-3 w-3 mr-1" />
+                                      Обработено
+                                    </Badge>
+                                  )}
+                                  {production.employee_id === currentEmployee.id ? (
+                                    <Badge variant="secondary" className="bg-amber-100 text-amber-800 text-xs">
+                                      Мое
+                                    </Badge>
+                                  ) : production.partner_employee_id === currentEmployee.id ? (
+                                    <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
+                                      Партньор
+                                    </Badge>
+                                  ) : (
+                                    showAllProductions && (
+                                      <Badge variant="secondary" className="bg-blue-100 text-blue-800 text-xs">
+                                        {production.employee_name}
+                                      </Badge>
+                                    )
+                                  )}
+                                </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600">
-                          <div className="truncate">
-                            <span className="font-medium">Служител:</span> {production.employee_name}
-                          </div>
-                          <div className="truncate">
-                            <span className="font-medium">Линия:</span> {production.production_line_name}
-                          </div>
-                          <div className="truncate">
-                            <span className="font-medium">Партньор:</span> {production.partner_name}
-                          </div>
-                          <div>
-                            <span className="font-medium">Количество:</span> {production.quantity} брой
-                          </div>
-                          <div>
-                            <span className="font-medium">Дата:</span> {formatDate(production.production_date)}
-                          </div>
-                          {production.notes && (
-                            <div className="sm:col-span-2">
-                              <span className="font-medium">Бележки:</span> {production.notes}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-xs sm:text-sm text-gray-600">
+                                  <div className="truncate">
+                                    <span className="font-medium">Служител:</span> {production.employee_name}
+                                  </div>
+                                  <div className="truncate">
+                                    <span className="font-medium">Линия:</span> {production.production_line_name}
+                                  </div>
+                                  <div className="truncate">
+                                    <span className="font-medium">Партньор:</span> {production.partner_name}
+                                  </div>
+                                  <div>
+                                    <span className="font-medium">Количество:</span> {production.quantity} брой
+                                  </div>
+                                  {production.notes && (
+                                    <div className="sm:col-span-2">
+                                      <span className="font-medium">Бележки:</span> {production.notes}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2 sm:ml-4 justify-end sm:justify-start">
+                                {/* Processed Checkbox */}
+                                <div className="flex items-center gap-2">
+                                  <Checkbox
+                                    id={`processed-${production.id}`}
+                                    checked={isProcessed}
+                                    onCheckedChange={() => toggleProcessed(production.id, production.processed)}
+                                    className={isProcessed ? "border-green-500 data-[state=checked]:bg-green-500" : ""}
+                                  />
+                                  <label 
+                                    htmlFor={`processed-${production.id}`}
+                                    className="text-xs sm:text-sm cursor-pointer select-none text-gray-600"
+                                  >
+                                    Обработено
+                                  </label>
+                                </div>
+                                
+                                {canEdit(production) && (
+                                  <>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleEdit(production)}
+                                      className="h-8 w-8 sm:h-9 sm:w-auto p-0 sm:px-3"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleDelete(production.id)}
+                                      className="text-red-600 hover:text-red-700 h-8 w-8 sm:h-9 sm:w-auto p-0 sm:px-3"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
                             </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {canEdit(production) && (
-                        <div className="flex gap-2 sm:ml-4 justify-end sm:justify-start">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleEdit(production)}
-                            className="h-8 w-8 sm:h-9 sm:w-auto p-0 sm:px-3"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDelete(production.id)}
-                            className="text-red-600 hover:text-red-700 h-8 w-8 sm:h-9 sm:w-auto p-0 sm:px-3"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
+                          </div>
+                        )
+                      })}
                     </div>
                   </div>
                 ))}

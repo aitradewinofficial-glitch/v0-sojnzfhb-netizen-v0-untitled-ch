@@ -2,7 +2,7 @@ import Link from "next/link"
 import { ChevronRight, Search, Package } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { getCategories, getSubcategories, searchProducts } from "@/lib/db"
+import { getCategories, getSubcategories, searchProducts, getBatchProductRatings } from "@/lib/db"
 import { SiteHeader } from "@/components/site-header"
 import { CategoriesNavbar } from "@/components/categories-navbar"
 import { ProductCard } from "@/components/product-card"
@@ -15,6 +15,10 @@ export default async function SearchPage({ searchParams }: { searchParams: { q: 
   const products = query ? await searchProducts(query) : []
   const categories = await getCategories()
   const allSubcategories = await getSubcategories()
+  
+  // Fetch ratings for all products
+  const productIds = (products || []).map((p) => p.objectid)
+  const ratingsMap = await getBatchProductRatings(productIds)
 
   // Извличане на информация за потребителя - същата логика като на home page
   const user = await getUser()
@@ -44,7 +48,7 @@ export default async function SearchPage({ searchParams }: { searchParams: { q: 
     <div className="min-h-screen bg-gray-50">
       {/* Header - Using the same components as home page */}
       <SiteHeader categories={categories} subcategories={allSubcategories} />
-      <CategoriesNavbar />
+      <CategoriesNavbar categories={categories} subcategories={allSubcategories} isEnglish={false} />
 
       {/* Search Header with improved design */}
       <section className="bg-gradient-to-b from-gray-900 to-gray-800 py-12">
@@ -107,24 +111,33 @@ export default async function SearchPage({ searchParams }: { searchParams: { q: 
                 <>
                   {/* Results Grid */}
                   <div className="grid grid-cols-1 gap-6 xs:grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-                    {products.map((product) => (
-                      <ProductCard
-                        key={product.objectid}
-                        id={product.objectid}
-                        title={product.title}
-                        description={product.description}
-                        price={product.price}
-                        retailerprice={product.retailerprice}
-                        wholesalerprice={product.wholesalerprice}
-                        europe_price={product.europe_price}
-                        photourl={product.photourl}
-                        isLoggedIn={isLoggedIn}
-                        customerType={user?.customerType}
-                        discountPercent={user?.discountPercent}
-                        isNew={product.createdat ? isNewProduct(product.createdat) : false}
-                        discount={getRandomDiscount()}
-                      />
-                    ))}
+                    {products.map((product) => {
+                      const rating = ratingsMap.get(product.objectid)
+                      return (
+                        <ProductCard
+                          key={product.objectid}
+                          id={product.objectid}
+                          title={product.title}
+                          description={product.description}
+                          price={product.price}
+                          retailerprice={product.retailerprice}
+                          wholesalerprice={product.wholesalerprice}
+                          europe_price={product.europe_price}
+                          price_eur={product.price_eur}
+                          retailerprice_eur={product.retailerprice_eur}
+                          wholesalerprice_eur={product.wholesalerprice_eur}
+                          europe_price_eur={product.europe_price_eur}
+                          photourl={product.photourl}
+                          isLoggedIn={isLoggedIn}
+                          customerType={user?.customerType}
+                          discountPercent={user?.discountPercent}
+                          isNew={product.createdat ? isNewProduct(product.createdat) : false}
+                          discount={getRandomDiscount()}
+                          averageRating={rating?.average_rating}
+                          reviewCount={rating?.review_count}
+                        />
+                      )
+                    })}
                   </div>
 
                   {/* Load More Button */}

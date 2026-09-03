@@ -1,14 +1,19 @@
 import { Suspense } from "react"
 import Link from "next/link"
 import Image from "next/image"
-import { ChevronRight, Star, Tag } from "lucide-react"
+import type { Metadata } from "next"
+import { ChevronRight, Tag, Package, Layers, Hash, CheckCircle2, Phone } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Carousel, CarouselContent, CarouselItem } from "@/components/ui/carousel"
 import { SiteHeader } from "@/components/site-header"
 import { SiteFooter } from "@/components/site-footer"
 import { CategoriesNavbar } from "@/components/categories-navbar"
 import { ProductCard } from "@/components/product-card"
 import { ProductQuantityControls } from "@/components/product-quantity-controls"
+import { StickyBuyButton } from "@/components/sticky-buy-button"
+import { CompareFloatingButton } from "@/components/compare-floating-button"
+import { StarRating } from "@/components/star-rating"
+import { ProductReviewsSection } from "@/components/product-reviews-section"
+import { ProductFAQsSection } from "@/components/product-faqs-section"
 import { getUser } from "@/lib/auth"
 import {
   getCategories,
@@ -18,17 +23,77 @@ import {
   getSubcategoryById,
   getProductsByCategory,
   getActiveQuantityPromotionForSubcategory,
+  getProductRatingSummary,
 } from "@/lib/db"
+import { slugify, subcategoryHref } from "@/lib/utils"
 
 export const dynamic = "force-dynamic"
 
-interface ProductPageProps {
-  params: {
-    id: string
+// Dynamic SEO metadata from database (English version)
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id: productId } = await params
+  
+  if (!productId || productId === "null" || productId === "undefined") {
+    return { title: "Product not found | Madix Groundbaits" }
+  }
+
+  const product = await getProductById(productId)
+  
+  if (!product) {
+    return { title: "Product not found | Madix Groundbaits" }
+  }
+
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://madix-groundbaits.bg"
+  const displayTitle = product.title_en || product.title
+  const displayDescription = product.description_en || product.description
+  const enSlug = slugify(displayTitle) || productId
+  const bgSlug = slugify(product.title) || productId
+  const productUrl = `${baseUrl}/en/product/${enSlug}`
+  const productImage = product.photourl || `${baseUrl}/og-image.jpg`
+
+  return {
+    title: product.seo_meta_title || `${displayTitle} | Madix Groundbaits`,
+    description: product.seo_meta_description || displayDescription?.slice(0, 160) || `Buy ${displayTitle} from Madix Groundbaits - professional fishing equipment`,
+    keywords: product.seo_meta_keywords?.split(",").map((k: string) => k.trim()),
+    robots: product.seo_robots || "index, follow",
+    alternates: {
+      canonical: product.seo_canonical_url || productUrl,
+      languages: {
+        "bg": `${baseUrl}/product/${bgSlug}`,
+        "en": productUrl,
+      },
+    },
+    openGraph: {
+      title: product.seo_og_title || product.seo_meta_title || displayTitle,
+      description: product.seo_og_description || product.seo_meta_description || displayDescription?.slice(0, 200),
+      url: productUrl,
+      siteName: "Madix Groundbaits",
+      locale: "en_US",
+      type: "website",
+      images: [
+        {
+          url: product.seo_og_image || productImage,
+          width: 1200,
+          height: 630,
+          alt: product.seo_alt_text || displayTitle,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: product.seo_twitter_title || product.seo_og_title || displayTitle,
+      description: product.seo_twitter_description || product.seo_og_description || displayDescription?.slice(0, 200),
+      images: [product.seo_twitter_image || product.seo_og_image || productImage],
+    },
   }
 }
 
-// Helper function to format price, ensuring "N/A" for null/undefined prices
+interface ProductPageProps {
+  params: Promise<{
+  id: string
+  }>
+}
+
 function formatDisplayPrice(price: number | null | undefined): string {
   if (price === null || price === undefined || isNaN(Number(price))) {
     return "N/A"
@@ -36,25 +101,24 @@ function formatDisplayPrice(price: number | null | undefined): string {
   return Number(price).toFixed(2)
 }
 
-// Helper function to convert BGN to EUR
 function convertBgnToEur(bgnPrice: number | null | undefined): number | null {
   if (bgnPrice === null || bgnPrice === undefined || isNaN(Number(bgnPrice))) {
     return null
   }
-  return Number(bgnPrice) / 1.96 // 1 EUR = 1.96 BGN
+  return Number(bgnPrice) / 1.96
 }
 
 async function ProductContent({ productId }: { productId: string }) {
   try {
-    // Enhanced validation for product ID
     if (!productId || productId === "null" || productId === "undefined" || productId.trim() === "") {
-      console.warn(`Invalid product ID received: ${productId}`)
       return (
-        <div className="min-h-screen bg-gray-100 text-gray-800 flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold mb-4">Product not found</h1>
-            <p className="text-gray-600 mb-6">Sorry, but the product you are looking for does not exist.</p>
-            <Button asChild className="bg-red-600 hover:bg-red-700 text-white">
+        <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+          <div className="text-center max-w-md mx-auto px-6">
+            <h1 className="text-2xl font-bold tracking-tight text-neutral-900 mb-3">Product not found</h1>
+            <p className="text-neutral-500 mb-8 leading-relaxed">
+              Sorry, but the product you are looking for does not exist.
+            </p>
+            <Button asChild className="rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-8 py-3">
               <Link href="/en">Back to homepage</Link>
             </Button>
           </div>
@@ -62,15 +126,16 @@ async function ProductContent({ productId }: { productId: string }) {
       )
     }
 
-    // Fetch product
     const product = await getProductById(productId)
     if (!product) {
       return (
-        <div className="min-h-screen bg-gray-100 text-gray-800 flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold mb-4">Product not found</h1>
-            <p className="text-gray-600 mb-6">Sorry, but the product you are looking for does not exist.</p>
-            <Button asChild className="bg-red-600 hover:bg-red-700 text-white">
+        <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+          <div className="text-center max-w-md mx-auto px-6">
+            <h1 className="text-2xl font-bold tracking-tight text-neutral-900 mb-3">Product not found</h1>
+            <p className="text-neutral-500 mb-8 leading-relaxed">
+              Sorry, but the product you are looking for does not exist.
+            </p>
+            <Button asChild className="rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-8 py-3">
               <Link href="/en">Back to homepage</Link>
             </Button>
           </div>
@@ -82,22 +147,20 @@ async function ProductContent({ productId }: { productId: string }) {
     const user = await getUser().catch(() => null)
     const isUserLoggedIn = !!user
 
-    // Get subcategory promotion
     const subcategoryPromotion = await getActiveQuantityPromotionForSubcategory(product.subcateid, user?.customerType)
 
-    // Get category and subcategory info
     const category = product?.cateid ? await getCategoryById(product.cateid).catch(() => null) : null
     const allSubcategories = await getSubcategories().catch(() => [])
     const subcategory = product?.subcateid ? await getSubcategoryById(product.subcateid).catch(() => null) : null
 
-    // Get similar products
     const similarProducts = product?.cateid
       ? (await getProductsByCategory(product.cateid).catch(() => []))
           .filter((p) => p["Document ID"] !== product["Document ID"])
           .slice(0, 8)
       : []
 
-    // Transform categories to use English titles
+    const ratingSummary = await getProductRatingSummary(product["Document ID"] || product.objectid).catch(() => null)
+
     const englishCategories = (categories || []).map((cat) => ({
       ...cat,
       title: cat.title_en || cat.title,
@@ -108,10 +171,9 @@ async function ProductContent({ productId }: { productId: string }) {
       return type === "european" || type === "europen"
     }
 
-    // Determines the base price according to customer type, without personal discounts
     const getBasePriceForCustomer = (): number | null => {
       if (!isUserLoggedIn) {
-        return Number(product.price) // Standard price for guests
+        return Number(product.price)
       }
       const type = user?.customerType?.toLowerCase()
       if (isEuropeanCustomer()) {
@@ -125,12 +187,31 @@ async function ProductContent({ productId }: { productId: string }) {
           ? Number(product.retailerprice)
           : null
       } else {
-        return Number(product.price) // Standard price for other logged-in users
+        return Number(product.price)
       }
     }
 
     const priceToDisplay = getBasePriceForCustomer()
-    const eurPrice = convertBgnToEur(priceToDisplay)
+    
+    // Get EUR price directly from database for customer type
+    const getEurPriceForCustomer = (): number | null => {
+      if (!isUserLoggedIn) {
+        return product.price_eur !== undefined && product.price_eur !== null ? Number(product.price_eur) : null
+      }
+      const type = user?.customerType?.toLowerCase()
+      if (isEuropeanCustomer()) {
+        return product.europe_price_eur !== undefined && product.europe_price_eur !== null ? Number(product.europe_price_eur) : null
+      } else if (type === "wholesaler" || type === "едро") {
+        return product.wholesalerprice_eur !== undefined && product.wholesalerprice_eur !== null ? Number(product.wholesalerprice_eur) : null
+      } else if (type === "retailer" || type === "дребно") {
+        return product.retailerprice_eur !== undefined && product.retailerprice_eur !== null ? Number(product.retailerprice_eur) : null
+      } else {
+        return product.price_eur !== undefined && product.price_eur !== null ? Number(product.price_eur) : null
+      }
+    }
+    
+    const dbEurPrice = getEurPriceForCustomer()
+    const eurPrice = dbEurPrice !== null ? dbEurPrice : convertBgnToEur(priceToDisplay)
 
     const getPriceLabel = (): string => {
       if (!isUserLoggedIn) return "Standard Price"
@@ -147,7 +228,6 @@ async function ProductContent({ productId }: { productId: string }) {
       return "Standard Price"
     }
 
-    // Handle promotion logic
     let finalPromoBuyQty: number | null | undefined = null
     let finalPromoFreeQty: number | null | undefined = null
     let promotionDisplayMessage: string | null = null
@@ -165,16 +245,54 @@ async function ProductContent({ productId }: { productId: string }) {
       }
     }
 
-    // Use English fields
     const displayTitle = product.title_en || product.title
     const displayDescription = product.description_en || product.description
     const categoryTitle = category?.title_en || category?.title
     const subcategoryTitle = subcategory?.title_en || subcategory?.title
 
+    // Generate JSON-LD structured data for product (English)
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://madix-groundbaits.bg"
+    const productJsonLd = {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      "name": displayTitle,
+      "description": product.seo_meta_description || displayDescription,
+      "image": product.photourl,
+      "sku": product.seo_schema_sku || product.objectid,
+      "brand": {
+        "@type": "Brand",
+        "name": product.seo_schema_brand || "Madix Groundbaits"
+      },
+      "offers": {
+        "@type": "Offer",
+        "url": `${baseUrl}/en/product/${slugify(product.title_en || product.title) || product.objectid}`,
+        "priceCurrency": "EUR",
+        "price": eurPrice || (priceToDisplay ? priceToDisplay / 1.96 : null),
+        "availability": `https://schema.org/${product.seo_schema_availability || "InStock"}`,
+        "seller": {
+          "@type": "Organization",
+          "name": "Madix Groundbaits"
+        }
+      },
+      ...(ratingSummary && ratingSummary.review_count > 0 ? {
+        "aggregateRating": {
+          "@type": "AggregateRating",
+          "ratingValue": ratingSummary.average_rating,
+          "reviewCount": ratingSummary.review_count
+        }
+      } : {})
+    }
+
     return (
-      <div className="min-h-screen bg-gray-100 text-gray-800">
-        {/* Header */}
-        <div className="bg-gray-700">
+      <>
+        {/* JSON-LD Structured Data */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+        />
+        
+        <div className="min-h-screen bg-neutral-50 text-neutral-900 pb-24 md:pb-0">
+          {/* Header */}
           <SiteHeader
             categories={englishCategories}
             subcategories={allSubcategories}
@@ -183,118 +301,125 @@ async function ProductContent({ productId }: { productId: string }) {
             userName={user?.name || user?.storeName || ""}
             isEnglish={true}
           />
-          <CategoriesNavbar currentCategoryId={product?.cateid} isEnglish={true} />
-        </div>
+        <CategoriesNavbar currentCategoryId={product?.cateid} isEnglish={true} />
 
         {/* Breadcrumb */}
-        <div className="bg-white border-b border-gray-200 py-4">
+        <div className="border-b border-neutral-200/60 py-3.5">
           <div className="container mx-auto px-4">
-            <div className="flex items-center space-x-2 text-sm text-gray-600">
-              <Link href="/en" className="hover:text-red-600">
+            <div className="flex items-center gap-1.5 text-sm text-neutral-400">
+              <Link href="/en" className="transition-colors hover:text-neutral-700">
                 Home
               </Link>
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className="h-3.5 w-3.5" />
               {category && (
                 <>
-                  <Link href={`/en/category/${category.id}`} className="hover:text-red-600">
+                  <Link href={`/en/category/${category.id}`} className="transition-colors hover:text-neutral-700">
                     {categoryTitle}
                   </Link>
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-3.5 w-3.5" />
                 </>
               )}
               {subcategory && (
                 <>
-                  <Link href={`/en/subcategory/${subcategory.id}`} className="hover:text-red-600">
+                  <Link href={subcategoryHref(subcategoryTitle, subcategory.id, true)} className="transition-colors hover:text-neutral-700">
                     {subcategoryTitle}
                   </Link>
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-3.5 w-3.5" />
                 </>
               )}
-              <span className="text-red-600">{displayTitle}</span>
+              <span className="text-neutral-700 font-medium truncate max-w-[200px]">{displayTitle}</span>
             </div>
           </div>
         </div>
 
-        {/* Product Details */}
-        <section className="py-12 bg-gray-50">
+        {/* Product Detail Section */}
+        <section className="py-10 md:py-16">
           <div className="container mx-auto px-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
-              {/* Product Image */}
-              <div className="bg-white rounded-lg overflow-hidden shadow-sm">
-                <Carousel className="w-full">
-                  <CarouselContent>
-                    <CarouselItem>
-                      <div className="aspect-square relative">
-                        <Image
-                          src={
-                            product.photourl ||
-                            `/placeholder.svg?height=600&width=600&query=${encodeURIComponent(displayTitle || "fishing equipment")}`
-                          }
-                          alt={displayTitle}
-                          fill
-                          className="object-scale-down p-4"
-                        />
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 lg:gap-16">
+
+              {/* Image Gallery */}
+              <div className="relative">
+                <div className="sticky top-8">
+                  <div className="aspect-square relative rounded-3xl bg-white border border-neutral-200/60 overflow-hidden shadow-sm">
+                    <Image
+                      src={
+                        product.photourl ||
+                        `/placeholder.svg?height=700&width=700&query=${encodeURIComponent(displayTitle || "fishing equipment")}`
+                      }
+                      alt={displayTitle}
+                      fill
+                      className="object-contain p-8 md:p-12"
+                      priority
+                      unoptimized
+                    />
+
+                    {promotionDisplayMessage && (
+                      <div className="absolute left-4 top-4 z-10">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500 px-3 py-1.5 text-xs font-semibold tracking-wide text-white shadow-lg shadow-amber-500/20">
+                          <Tag className="h-3.5 w-3.5" />
+                          {promotionDisplayMessage}
+                        </span>
                       </div>
-                    </CarouselItem>
-                  </CarouselContent>
-                </Carousel>
+                    )}
+                  </div>
+                </div>
               </div>
 
               {/* Product Info */}
-              <div>
-                <h1 className="text-3xl font-bold mb-4 text-gray-800">{displayTitle}</h1>
+              <div className="flex flex-col">
+                {/* Title */}
+                <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight text-neutral-900 leading-tight text-balance">
+                  {displayTitle}
+                </h1>
 
                 {/* Rating */}
-                <div className="flex items-center mb-4">
-                  {Array(4)
-                    .fill(0)
-                    .map((_, i) => (
-                      <Star key={i} className="h-5 w-5 fill-yellow-400 text-yellow-400" />
-                    ))}
-                  {Array(1)
-                    .fill(0)
-                    .map((_, i) => (
-                      <Star key={i} className="h-5 w-5 text-gray-300" />
-                    ))}
-                  <span className="ml-2 text-gray-600">(4.0)</span>
-                </div>
+                {ratingSummary && ratingSummary.review_count > 0 && (
+                  <div className="mt-3">
+                    <StarRating
+                      rating={ratingSummary.average_rating}
+                      size="md"
+                      showValue
+                      reviewCount={ratingSummary.review_count}
+                      isEnglish={true}
+                    />
+                  </div>
+                )}
 
-                {/* Price Section */}
-                <div className="mb-6">
+                {/* Price Block */}
+                <div className="mt-6 pb-6 border-b border-neutral-200/60">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-neutral-400 mb-2">
+                    {getPriceLabel()}
+                  </p>
                   {isUserLoggedIn ? (
                     <>
-                      <div className="text-sm text-gray-600 mb-1">{getPriceLabel()}</div>
-                      <div className="flex flex-col">
-                        <p className="text-3xl font-bold text-red-600">
-                          {formatDisplayPrice(priceToDisplay)} {priceToDisplay !== null ? "BGN" : ""}
-                        </p>
-                        {eurPrice !== null && <p className="text-xl text-gray-600">{formatDisplayPrice(eurPrice)} €</p>}
-                      </div>
-                      {promotionDisplayMessage && (
-                        <div className="mt-2 flex items-center">
-                          <Tag className="h-4 w-4 mr-1 text-green-600" />
-                          <p className="text-sm font-semibold text-green-700">{promotionDisplayMessage}</p>
+                      {priceToDisplay !== null ? (
+                        <div className="flex items-baseline gap-3">
+                          {eurPrice !== null && (
+                            <span className="text-4xl font-bold tracking-tight text-neutral-900">
+                              {formatDisplayPrice(eurPrice)}
+                              <span className="text-xl font-semibold text-neutral-500 ml-1">{"€"}</span>
+                            </span>
+                          )}
+                          <span className="text-lg text-neutral-400 font-medium">
+                            {formatDisplayPrice(priceToDisplay)} BGN
+                          </span>
                         </div>
+                      ) : (
+                        <span className="text-4xl font-bold text-neutral-300">N/A</span>
                       )}
                     </>
                   ) : (
                     <>
-                      <p className="text-sm text-gray-600 mb-1">Standard Price</p>
-                      <div className="flex flex-col">
-                        <p className="text-3xl font-bold text-red-600">
+                      <div className="flex items-baseline gap-3">
+                        <span className="text-4xl font-bold tracking-tight text-neutral-900">
+                          {formatDisplayPrice(convertBgnToEur(Number(product.price)))}
+                          <span className="text-xl font-semibold text-neutral-500 ml-1">{"€"}</span>
+                        </span>
+                        <span className="text-lg text-neutral-400 font-medium">
                           {formatDisplayPrice(Number(product.price))} BGN
-                        </p>
-                        <p className="text-xl text-gray-600">
-                          {formatDisplayPrice(convertBgnToEur(Number(product.price)))} €
-                        </p>
+                        </span>
                       </div>
-                      {promotionDisplayMessage && (
-                        <div className="mt-2 flex items-center">
-                          <Tag className="h-4 w-4 mr-1 text-green-600" />
-                          <p className="text-sm font-semibold text-green-700">{promotionDisplayMessage}</p>
-                        </div>
-                      )}
-                      <p className="text-gray-700 text-sm mt-2">
+                      <p className="text-sm text-neutral-500 mt-3 leading-relaxed">
                         Register or log in to your profile for special prices and discounts.
                       </p>
                     </>
@@ -303,13 +428,15 @@ async function ProductContent({ productId }: { productId: string }) {
 
                 {/* Description */}
                 {displayDescription && (
-                  <div className="mb-8">
-                    <p className="text-gray-700 whitespace-pre-wrap">{displayDescription}</p>
+                  <div className="mt-6 pb-6 border-b border-neutral-200/60">
+                    <p className="text-neutral-600 leading-relaxed whitespace-pre-wrap text-[15px]">
+                      {displayDescription}
+                    </p>
                   </div>
                 )}
 
                 {/* Add to Cart */}
-                <div className="mb-8">
+                <div className="mt-6 pb-6 border-b border-neutral-200/60">
                   <ProductQuantityControls
                     productId={product["Document ID"] || product.objectid}
                     productTitle={displayTitle}
@@ -322,67 +449,98 @@ async function ProductContent({ productId }: { productId: string }) {
                   />
                 </div>
 
-                {/* Product Details */}
-                <div className="border-t border-gray-200 pt-6">
+                {/* Product Meta */}
+                <div className="mt-6 space-y-3">
                   {category && (
-                    <div className="flex items-center text-gray-600 mb-2">
-                      <span className="w-32">Category:</span>
-                      <Link href={`/en/category/${category.id}`} className="text-red-600 hover:underline">
+                    <div className="flex items-center gap-3 text-sm">
+                      <Layers className="h-4 w-4 text-neutral-400 shrink-0" />
+                      <span className="text-neutral-500">Category:</span>
+                      <Link href={`/en/category/${category.id}`} className="font-medium text-neutral-700 hover:text-neutral-900 transition-colors">
                         {categoryTitle}
                       </Link>
                     </div>
                   )}
                   {subcategory && (
-                    <div className="flex items-center text-gray-600 mb-2">
-                      <span className="w-32">Subcategory:</span>
-                      <Link href={`/en/subcategory/${subcategory.id}`} className="text-red-600 hover:underline">
+                    <div className="flex items-center gap-3 text-sm">
+                      <Package className="h-4 w-4 text-neutral-400 shrink-0" />
+                      <span className="text-neutral-500">Subcategory:</span>
+                      <Link href={subcategoryHref(subcategoryTitle, subcategory.id, true)} className="font-medium text-neutral-700 hover:text-neutral-900 transition-colors">
                         {subcategoryTitle}
                       </Link>
                     </div>
                   )}
-                  <div className="flex items-center text-gray-600 mb-2">
-                    <span className="w-32">Product Code:</span>
-                    <span>{product["Document ID"] || product.objectid}</span>
+                  <div className="flex items-center gap-3 text-sm">
+                    <Hash className="h-4 w-4 text-neutral-400 shrink-0" />
+                    <span className="text-neutral-500">Product Code:</span>
+                    <span className="font-mono text-neutral-700">{product["Document ID"] || product.objectid}</span>
                   </div>
-                  <div className="flex items-center text-gray-600">
-                    <span className="w-32">Availability:</span>
-                    <span className="text-green-600">In Stock</span>
+                  <div className="flex items-center gap-3 text-sm">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+                    <span className="text-neutral-500">Availability:</span>
+                    <span className="font-medium text-emerald-600">In Stock</span>
                   </div>
+                </div>
+
+                {/* Call Button */}
+                <div className="mt-6 pt-6 border-t border-neutral-200/60">
+                  <p className="text-sm text-neutral-500 mb-3">Have questions? Call us:</p>
+                  <a
+                    href="tel:+359894352204"
+                    className="inline-flex items-center gap-2 px-5 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl transition-colors"
+                  >
+                    <Phone className="h-5 w-5" />
+                    +359 894 352 204
+                  </a>
                 </div>
               </div>
             </div>
           </div>
         </section>
 
+        {/* FAQs Section */}
+        <ProductFAQsSection productId={product["Document ID"] || product.objectid} isEnglish={true} />
+
+        {/* Reviews Section */}
+        <ProductReviewsSection productId={product["Document ID"] || product.objectid} isEnglish={true} />
+
         {/* Similar Products */}
         {similarProducts.length > 0 && (
-          <section className="py-12 bg-white">
+          <section className="py-12 md:py-16 border-t border-neutral-200/60">
             <div className="container mx-auto px-4">
-              <h2 className="text-2xl font-bold mb-8 text-gray-800">Similar Products</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              <div className="mb-10">
+                <h2 className="text-2xl font-bold tracking-tight text-neutral-900">Similar Products</h2>
+                <p className="text-neutral-500 mt-1.5 text-sm">
+                  Browse other products from this category
+                </p>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
                 {similarProducts.map((similarProd) => (
-                  <ProductCard
-                    key={similarProd["Document ID"] || similarProd.objectid}
-                    id={similarProd["Document ID"] || similarProd.objectid}
-                    title={similarProd.title_en || similarProd.title}
-                    description={similarProd.description_en || similarProd.description}
-                    price={Number(similarProd.price) || 0}
-                    retailerprice={Number(similarProd.retailerprice)}
-                    wholesalerprice={Number(similarProd.wholesalerprice)}
-                    europe_price={Number(similarProd.europe_price)}
-                    photourl={similarProd.photourl}
-                    isLoggedIn={isUserLoggedIn}
-                    customerType={user?.customerType}
-                    isEnglish={true}
+                <ProductCard
+                  key={similarProd["Document ID"] || similarProd.objectid}
+                  id={similarProd["Document ID"] || similarProd.objectid}
+                  title={similarProd.title_en || similarProd.title}
+                  description={similarProd.description_en || similarProd.description}
+                  price={Number(similarProd.price) || 0}
+                  retailerprice={Number(similarProd.retailerprice)}
+                  wholesalerprice={Number(similarProd.wholesalerprice)}
+                  europe_price={Number(similarProd.europe_price)}
+                  price_eur={similarProd.price_eur ? Number(similarProd.price_eur) : null}
+                  retailerprice_eur={similarProd.retailerprice_eur ? Number(similarProd.retailerprice_eur) : null}
+                  wholesalerprice_eur={similarProd.wholesalerprice_eur ? Number(similarProd.wholesalerprice_eur) : null}
+                  europe_price_eur={similarProd.europe_price_eur ? Number(similarProd.europe_price_eur) : null}
+                  photourl={similarProd.photourl}
+                  isLoggedIn={isUserLoggedIn}
+                  customerType={user?.customerType}
+                  isEnglish={true}
                   />
                 ))}
               </div>
               {category && (
-                <div className="mt-8 text-center">
+                <div className="mt-10 text-center">
                   <Button
                     asChild
                     variant="outline"
-                    className="border-gray-300 hover:bg-gray-100 text-gray-700 bg-transparent"
+                    className="rounded-xl border-neutral-300 hover:bg-neutral-100 text-neutral-700 bg-transparent px-8 py-3 font-medium"
                   >
                     <Link href={`/en/category/${category.id}`}>View all products in {categoryTitle} category</Link>
                   </Button>
@@ -392,20 +550,46 @@ async function ProductContent({ productId }: { productId: string }) {
           </section>
         )}
 
-        {/* Footer */}
         <SiteFooter categories={englishCategories} isEnglish={true} />
-      </div>
+
+          {/* Compare Floating Button - Mobile only */}
+          <CompareFloatingButton
+            product={{
+              id: product["Document ID"] || product.objectid,
+              title: displayTitle,
+              price: priceToDisplay !== null ? priceToDisplay : 0,
+              photourl: product.photourl,
+              description: displayDescription,
+              categoryTitle: categoryTitle,
+              subcategoryTitle: subcategoryTitle,
+            }}
+            isEnglish={true}
+          />
+
+          {/* Sticky Buy Button - Mobile only */}
+          <StickyBuyButton
+            productId={product["Document ID"] || product.objectid}
+            productTitle={displayTitle}
+            productPrice={priceToDisplay !== null ? priceToDisplay : 0}
+            photoUrl={product.photourl}
+            promo_buy_qty={finalPromoBuyQty}
+            promo_free_qty={finalPromoFreeQty}
+            disabled={priceToDisplay === null}
+            isEnglish={true}
+          />
+        </div>
+      </>
     )
   } catch (error) {
     console.error("Error loading product page:", error)
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
-          <h1 className="text-2xl font-bold mb-4 text-red-600">Error loading product</h1>
-          <p className="text-gray-600 mb-6">
+      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8 bg-white rounded-2xl border border-neutral-200/60 shadow-sm">
+          <h1 className="text-2xl font-bold tracking-tight text-red-600 mb-3">Error loading product</h1>
+          <p className="text-neutral-500 mb-8 leading-relaxed">
             There was a problem loading the information for this product. Please try again later.
           </p>
-          <Button asChild className="bg-red-600 hover:bg-red-700 text-white">
+          <Button asChild className="rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white px-8 py-3">
             <Link href="/en">Back to homepage</Link>
           </Button>
         </div>
@@ -414,19 +598,20 @@ async function ProductContent({ productId }: { productId: string }) {
   }
 }
 
-export default function EnglishProductPage({ params }: ProductPageProps) {
+export default async function EnglishProductPage({ params }: ProductPageProps) {
+  const { id } = await params
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center">
+        <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading product...</p>
+            <div className="h-10 w-10 rounded-full border-2 border-neutral-200 border-t-neutral-600 animate-spin mx-auto mb-4" />
+            <p className="text-neutral-500 text-sm">Loading product...</p>
           </div>
         </div>
       }
     >
-      <ProductContent productId={params.id} />
+      <ProductContent productId={id} />
     </Suspense>
   )
 }

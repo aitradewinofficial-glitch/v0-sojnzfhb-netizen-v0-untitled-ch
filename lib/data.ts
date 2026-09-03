@@ -48,6 +48,27 @@ export interface Category {
   description?: string
   description_en?: string
   photourl?: string
+  // SEO fields
+  seo_meta_title?: string
+  seo_meta_title_bg?: string
+  seo_meta_description?: string
+  seo_meta_description_bg?: string
+  seo_meta_keywords?: string
+  seo_meta_keywords_bg?: string
+  seo_og_title?: string
+  seo_og_title_bg?: string
+  seo_og_description?: string
+  seo_og_description_bg?: string
+  seo_og_image?: string
+  seo_twitter_card?: string
+  seo_twitter_title?: string
+  seo_twitter_description?: string
+  seo_twitter_image?: string
+  seo_canonical_url?: string
+  seo_robots?: string
+  seo_schema_type?: string
+  seo_focus_keyword?: string
+  seo_secondary_keywords?: string
 }
 
 export interface Subcategory {
@@ -58,6 +79,27 @@ export interface Subcategory {
   description_en?: string
   photourl?: string
   cateid: string
+  // SEO fields
+  seo_meta_title?: string
+  seo_meta_title_bg?: string
+  seo_meta_description?: string
+  seo_meta_description_bg?: string
+  seo_meta_keywords?: string
+  seo_meta_keywords_bg?: string
+  seo_og_title?: string
+  seo_og_title_bg?: string
+  seo_og_description?: string
+  seo_og_description_bg?: string
+  seo_og_image?: string
+  seo_twitter_card?: string
+  seo_twitter_title?: string
+  seo_twitter_description?: string
+  seo_twitter_image?: string
+  seo_canonical_url?: string
+  seo_robots?: string
+  seo_schema_type?: string
+  seo_focus_keyword?: string
+  seo_secondary_keywords?: string
 }
 
 export interface CategoryWithSubcategories extends Category {
@@ -121,6 +163,10 @@ export async function getProductById(id: string): Promise<Product | null> {
         retailerprice,
         wholesalerprice,
         europe_price,
+        price_eur,
+        retailerprice_eur,
+        wholesalerprice_eur,
+        europe_price_eur,
         photourl,
         cateid,
         subcateid,
@@ -142,17 +188,86 @@ export async function getCategoryById(id: string): Promise<Category | null> {
   return retryOperation(async () => {
     console.log(`[getCategoryById] Fetching category with ID: ${id}`)
 
-    const result = await sql`
+    // Route params can arrive percent-encoded (e.g. Cyrillic slugs). Decode
+    // defensively so slug matching compares against the human-readable slug.
+    let decodedId = id
+    try {
+      decodedId = decodeURIComponent(id)
+    } catch {
+      // Leave decodedId as-is if the value isn't a valid encoded sequence.
+    }
+    const slug = decodedId.toLowerCase()
+
+    let result = await sql`
       SELECT 
         "Document ID" as id,
         title,
         title_en,
         description,
         description_en,
-        photourl
+        photourl,
+        seo_meta_title,
+        seo_meta_title_bg,
+        seo_meta_description,
+        seo_meta_description_bg,
+        seo_meta_keywords,
+        seo_meta_keywords_bg,
+        seo_og_title,
+        seo_og_title_bg,
+        seo_og_description,
+        seo_og_description_bg,
+        seo_og_image,
+        seo_twitter_card,
+        seo_twitter_title,
+        seo_twitter_description,
+        seo_twitter_image,
+        seo_canonical_url,
+        seo_robots,
+        seo_schema_type,
+        seo_focus_keyword,
+        seo_secondary_keywords
       FROM categories 
       WHERE "Document ID" = ${id}
     `
+
+    // Resolve by slugified title/title_en (e.g. "аксесоари").
+    // The normalization below MUST stay in sync with slugify() in lib/utils.ts.
+    if (result.length === 0) {
+      result = await sql`
+        SELECT 
+          "Document ID" as id,
+          title,
+          title_en,
+          description,
+          description_en,
+          photourl,
+          seo_meta_title,
+          seo_meta_title_bg,
+          seo_meta_description,
+          seo_meta_description_bg,
+          seo_meta_keywords,
+          seo_meta_keywords_bg,
+          seo_og_title,
+          seo_og_title_bg,
+          seo_og_description,
+          seo_og_description_bg,
+          seo_og_image,
+          seo_twitter_card,
+          seo_twitter_title,
+          seo_twitter_description,
+          seo_twitter_image,
+          seo_canonical_url,
+          seo_robots,
+          seo_schema_type,
+          seo_focus_keyword,
+          seo_secondary_keywords
+        FROM categories 
+        WHERE
+          LOWER(REGEXP_REPLACE(REGEXP_REPLACE(title, '[^[:alnum:]]+', '-', 'g'), '(^-+|-+$)', '', 'g')) = ${slug}
+          OR LOWER(REGEXP_REPLACE(REGEXP_REPLACE(COALESCE(title_en, ''), '[^[:alnum:]]+', '-', 'g'), '(^-+|-+$)', '', 'g')) = ${slug}
+        LIMIT 1
+      `
+    }
 
     const category = result[0] || null
     console.log(`[getCategoryById] Found category:`, category ? `${category.title} (${category.id})` : "null")
@@ -166,7 +281,17 @@ export async function getSubcategoryById(id: string): Promise<Subcategory | null
   return retryOperation(async () => {
     console.log(`[getSubcategoryById] Fetching subcategory with ID: ${id}`)
 
-    const result = await sql`
+    // Route params can arrive percent-encoded (e.g. Cyrillic slugs). Decode
+    // defensively so slug matching compares against the human-readable slug.
+    let decodedId = id
+    try {
+      decodedId = decodeURIComponent(id)
+    } catch {
+      // Leave decodedId as-is if the value isn't a valid encoded sequence.
+    }
+    const slug = decodedId.toLowerCase()
+
+    let result = await sql`
       SELECT 
         "Document ID" as id,
         title,
@@ -174,10 +299,72 @@ export async function getSubcategoryById(id: string): Promise<Subcategory | null
         description,
         description_en,
         photourl,
-        cateid
+        cateid,
+        seo_meta_title,
+        seo_meta_title_bg,
+        seo_meta_description,
+        seo_meta_description_bg,
+        seo_meta_keywords,
+        seo_meta_keywords_bg,
+        seo_og_title,
+        seo_og_title_bg,
+        seo_og_description,
+        seo_og_description_bg,
+        seo_og_image,
+        seo_twitter_card,
+        seo_twitter_title,
+        seo_twitter_description,
+        seo_twitter_image,
+        seo_canonical_url,
+        seo_robots,
+        seo_schema_type,
+        seo_focus_keyword,
+        seo_secondary_keywords
       FROM subcategories 
       WHERE "Document ID" = ${id}
     `
+
+    // Resolve by slugified title/title_en (e.g. "микро-pop-up-6-8-mm").
+    // The normalization below MUST stay in sync with slugify() in lib/utils.ts.
+    if (result.length === 0) {
+      result = await sql`
+        SELECT 
+          "Document ID" as id,
+          title,
+          title_en,
+          description,
+          description_en,
+          photourl,
+          cateid,
+          seo_meta_title,
+          seo_meta_title_bg,
+          seo_meta_description,
+          seo_meta_description_bg,
+          seo_meta_keywords,
+          seo_meta_keywords_bg,
+          seo_og_title,
+          seo_og_title_bg,
+          seo_og_description,
+          seo_og_description_bg,
+          seo_og_image,
+          seo_twitter_card,
+          seo_twitter_title,
+          seo_twitter_description,
+          seo_twitter_image,
+          seo_canonical_url,
+          seo_robots,
+          seo_schema_type,
+          seo_focus_keyword,
+          seo_secondary_keywords
+        FROM subcategories 
+        WHERE (deleted = false OR deleted IS NULL)
+          AND (
+            LOWER(REGEXP_REPLACE(REGEXP_REPLACE(title, '[^[:alnum:]]+', '-', 'g'), '(^-+|-+$)', '', 'g')) = ${slug}
+            OR LOWER(REGEXP_REPLACE(REGEXP_REPLACE(COALESCE(title_en, ''), '[^[:alnum:]]+', '-', 'g'), '(^-+|-+$)', '', 'g')) = ${slug}
+          )
+        LIMIT 1
+      `
+    }
 
     const subcategory = result[0] || null
     console.log(
@@ -205,6 +392,10 @@ export async function getProductsByCategory(categoryId: string): Promise<Product
         retailerprice,
         wholesalerprice,
         europe_price,
+        price_eur,
+        retailerprice_eur,
+        wholesalerprice_eur,
+        europe_price_eur,
         photourl,
         cateid,
         subcateid,
@@ -236,9 +427,16 @@ export async function getSubcategories(categoryId?: string): Promise<Subcategory
             description_en,
             photourl,
             cateid,
-            deleted
+            deleted,
+            seo_meta_title,
+            seo_meta_title_bg,
+            seo_meta_description,
+            seo_meta_description_bg,
+            seo_og_title,
+            seo_og_title_bg,
+            seo_og_image
           FROM subcategories 
-          WHERE cateid = ${categoryId} AND deleted = false -- Added deleted = false
+          WHERE cateid = ${categoryId} AND deleted = false
           ORDER BY title
         `
       : await sql`
@@ -250,9 +448,16 @@ export async function getSubcategories(categoryId?: string): Promise<Subcategory
             description_en,
             photourl,
             cateid,
-            deleted
+            deleted,
+            seo_meta_title,
+            seo_meta_title_bg,
+            seo_meta_description,
+            seo_meta_description_bg,
+            seo_og_title,
+            seo_og_title_bg,
+            seo_og_image
           FROM subcategories 
-          WHERE deleted = false -- Added deleted = false
+          WHERE deleted = false
           ORDER BY title
         `
 
@@ -303,6 +508,10 @@ export async function searchProducts(query: string, limit = 20): Promise<Product
         retailerprice,
         wholesalerprice,
         europe_price,
+        price_eur,
+        retailerprice_eur,
+        wholesalerprice_eur,
+        europe_price_eur,
         photourl,
         cateid,
         subcateid,
@@ -348,6 +557,10 @@ export async function getProductsBySubcategory(subcategoryId: string): Promise<P
         retailerprice,
         wholesalerprice,
         europe_price,
+        price_eur,
+        retailerprice_eur,
+        wholesalerprice_eur,
+        europe_price_eur,
         photourl,
         cateid,
         subcateid,
@@ -380,6 +593,10 @@ export async function getFeaturedProducts(limit = 16): Promise<Product[]> {
         retailerprice,
         wholesalerprice,
         europe_price,
+        price_eur,
+        retailerprice_eur,
+        wholesalerprice_eur,
+        europe_price_eur,
         photourl,
         cateid,
         subcateid,
@@ -415,6 +632,10 @@ export async function getRelatedProducts(categoryId: string, currentProductId: s
         retailerprice,
         wholesalerprice,
         europe_price,
+        price_eur,
+        retailerprice_eur,
+        wholesalerprice_eur,
+        europe_price_eur,
         photourl,
         cateid,
         subcateid,

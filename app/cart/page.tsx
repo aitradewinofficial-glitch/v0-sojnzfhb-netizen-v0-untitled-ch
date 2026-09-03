@@ -3,6 +3,7 @@ import { getCategories, getSubcategories } from "@/lib/db"
 import { getUser } from "@/lib/auth"
 import { CartContent } from "@/components/cart-content"
 import { SiteFooter } from "@/components/site-footer"
+import { StickyBottomNav } from "@/components/sticky-bottom-nav"
 
 // Force dynamic rendering for this page
 export const dynamic = "force-dynamic"
@@ -16,7 +17,7 @@ export default async function CartPage() {
   const isUserLoggedIn = !!user
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-100 text-gray-800">
+    <div className="flex flex-col min-h-screen bg-gray-100 text-gray-800 pb-20 md:pb-0">
       <SiteHeader
         categories={categories}
         subcategories={subcategories}
@@ -28,6 +29,9 @@ export default async function CartPage() {
         <CartContent />
       </main>
       <SiteFooter categories={categories || []} isEnglish={false} />
+
+      {/* Sticky Bottom Navigation - Mobile only */}
+      <StickyBottomNav isEnglish={false} />
     </div>
   )
 }

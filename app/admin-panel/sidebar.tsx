@@ -1,7 +1,9 @@
 "use client"
 
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
+import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import {
   LayoutDashboard,
@@ -16,10 +18,40 @@ import {
   Undo2,
   Factory,
   Bell,
+  Rss,
+  Star,
+  Newspaper,
+  Search,
+  Boxes,
+  Fish,
+  BrainCircuit,
 } from "lucide-react"
 
 export function Sidebar({ items }: { items: any[] }) {
   const pathname = usePathname()
+  const [lowStockCount, setLowStockCount] = useState(0)
+
+  useEffect(() => {
+    let cancelled = false
+    const loadLowStock = async () => {
+      try {
+        const res = await fetch("/api/admin/supply/materials")
+        if (!res.ok) return
+        const materials = await res.json()
+        if (cancelled || !Array.isArray(materials)) return
+        const count = materials.filter((m: any) => Number(m.stock) < Number(m.min_quantity)).length
+        setLowStockCount(count)
+      } catch {
+        // тихо игнорираме
+      }
+    }
+    loadLowStock()
+    const interval = setInterval(loadLowStock, 60000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [])
 
   const isActive = (path: string) => {
     return pathname === path || pathname.startsWith(`${path}/`)
@@ -39,6 +71,12 @@ export function Sidebar({ items }: { items: any[] }) {
       active: isActive("/admin-panel/products"),
     },
     {
+      title: "Отзиви",
+      href: "/admin-panel/reviews",
+      icon: Star,
+      active: isActive("/admin-panel/reviews"),
+    },
+    {
       title: "Категории",
       href: "/admin-panel/categories",
       icon: Tag,
@@ -55,6 +93,12 @@ export function Sidebar({ items }: { items: any[] }) {
       href: "/admin-panel/users/approval",
       icon: UserCheck,
       active: isActive("/admin-panel/users/approval"),
+    },
+    {
+      title: "Рибари",
+      href: "/admin-panel/fishermen",
+      icon: Fish,
+      active: isActive("/admin-panel/fishermen"),
     },
     {
       title: "Поръчки",
@@ -81,7 +125,20 @@ export function Sidebar({ items }: { items: any[] }) {
       active: isActive("/admin-panel/production"),
     },
     {
-      title: "Главна снимка",
+      title: "Снабдяване",
+      href: "/admin-panel/supply",
+      icon: Boxes,
+      active: isActive("/admin-panel/supply"),
+      badge: lowStockCount,
+    },
+    {
+      title: "Новини",
+      href: "/admin-panel/news",
+      icon: Newspaper,
+      active: isActive("/admin-panel/news"),
+    },
+    {
+      title: "Банери (Карусел)",
       href: "/admin-panel/home-image",
       icon: ImageIcon,
       active: isActive("/admin-panel/home-image"),
@@ -93,6 +150,24 @@ export function Sidebar({ items }: { items: any[] }) {
       active: isActive("/admin-panel/banner-settings"),
     },
     {
+      title: "Meta Product Feed",
+      href: "/admin-panel/meta-feed",
+      icon: Rss,
+      active: isActive("/admin-panel/meta-feed"),
+    },
+    {
+      title: "SEO Настройки",
+      href: "/admin-panel/seo-settings",
+      icon: Search,
+      active: isActive("/admin-panel/seo-settings"),
+    },
+    {
+      title: "Изкуствен интелект",
+      href: "/admin-panel/madix-ai",
+      icon: BrainCircuit,
+      active: isActive("/admin-panel/madix-ai"),
+    },
+    {
       title: "Към сайта",
       href: "/",
       icon: Home,
@@ -100,32 +175,58 @@ export function Sidebar({ items }: { items: any[] }) {
   ]
 
   return (
-    <div className="h-full flex flex-col bg-gray-900 text-white">
-      <div className="p-4 border-b border-gray-800">
-        <Link href="/admin-panel" className="flex items-center space-x-2 text-xl font-bold">
-          <span>Админ панел</span>
+    <div className="h-full flex flex-col text-white" style={{ background: "linear-gradient(180deg, #1a0a00 0%, #2d1200 40%, #1a0a00 100%)" }}>
+      {/* Logo header */}
+      <div className="px-5 py-5 border-b border-orange-900/40">
+        <Link href="/admin-panel" className="flex items-center justify-center">
+          <div className="relative h-10 w-36">
+            <Image
+              src="/images/design-mode/new-madiks.png"
+              alt="Madix"
+              fill
+              className="object-contain"
+              priority
+            />
+          </div>
         </Link>
+        <p className="text-center text-[10px] font-semibold tracking-[0.2em] uppercase text-orange-400/70 mt-2">
+          Админ панел
+        </p>
       </div>
-      <nav className="flex-1 overflow-auto p-4">
-        <div className="space-y-1">
+
+      {/* Nav items */}
+      <nav className="flex-1 overflow-auto py-4 px-3">
+        <div className="space-y-0.5">
           {navItems.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               className={cn(
-                "flex items-center space-x-2 px-3 py-2 rounded-md transition-colors",
-                item.active ? "bg-gray-800 text-white" : "text-gray-400 hover:text-white hover:bg-gray-800",
+                "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 text-sm font-medium",
+                item.active
+                  ? "bg-orange-500 text-white shadow-lg shadow-orange-900/40"
+                  : "text-orange-200/70 hover:text-white hover:bg-orange-500/20",
               )}
             >
-              <item.icon className="h-5 w-5" />
-              <span>{item.title}</span>
+              <item.icon className={cn("h-4 w-4 shrink-0", item.active ? "text-white" : "text-orange-400")} />
+              <span className="flex-1">{item.title}</span>
+              {item.badge > 0 && (
+                <span className="ml-auto inline-flex min-w-5 h-5 items-center justify-center rounded-full bg-red-600 px-1.5 text-[11px] font-bold text-white">
+                  {item.badge}
+                </span>
+              )}
             </Link>
           ))}
         </div>
       </nav>
-      <div className="p-4 border-t border-gray-800">
-        <Link href="/" className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors">
-          <Home className="h-5 w-5" />
+
+      {/* Footer */}
+      <div className="px-3 py-4 border-t border-orange-900/40">
+        <Link
+          href="/"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-orange-200/70 hover:text-white hover:bg-orange-500/20 transition-all duration-150"
+        >
+          <Home className="h-4 w-4 shrink-0 text-orange-400" />
           <span>Към сайта</span>
         </Link>
       </div>

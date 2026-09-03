@@ -2,6 +2,7 @@ import { Suspense } from "react"
 import { SiteHeader } from "@/components/site-header"
 import { CartContent } from "@/components/cart-content"
 import { sql } from "@vercel/postgres"
+import { StickyBottomNav } from "@/components/sticky-bottom-nav"
 
 // Force dynamic rendering for this page
 export const dynamic = "force-dynamic"
@@ -53,13 +54,16 @@ export default async function EnglishCartPage() {
   const [categories, subcategories] = await Promise.all([getCategories(), getSubcategories()])
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-20 md:pb-0">
       <SiteHeader categories={categories} subcategories={subcategories} isEnglish={true} />
       <main className="container mx-auto px-4 py-8">
         <Suspense fallback={<div>Loading cart...</div>}>
           <CartContent isEnglish={true} />
         </Suspense>
       </main>
+
+      {/* Sticky Bottom Navigation - Mobile only */}
+      <StickyBottomNav isEnglish={true} />
     </div>
   )
 }

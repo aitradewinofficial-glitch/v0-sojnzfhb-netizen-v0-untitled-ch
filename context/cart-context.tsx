@@ -13,8 +13,9 @@ export type CartItem = {
   photourl?: string
   freeItems?: number
   isEuropeanPrice?: boolean
+  eurPrice?: number | null
   promo_buy_qty?: number | null // Количество за покупка за промоция
-  promo_free_qty?: number | null // Безплатно коли��ество при промоция
+  promo_free_qty?: number | null // Безплатно количество при промоция
 }
 
 // НОВА функция за изчисляване на промоции за цялата количка
@@ -139,6 +140,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
         existingItem.promo_buy_qty = item.promo_buy_qty
         existingItem.promo_free_qty = item.promo_free_qty
         existingItem.price = item.price
+        existingItem.eurPrice = item.eurPrice
         existingItem.isEuropeanPrice = isEuropean
       } else {
         // Създаваме нов артикул, без да задаваме freeItems; те ще бъдат изчислени
@@ -148,6 +150,7 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
           price: item.price,
           quantity: item.quantity,
           photourl: item.photourl,
+          eurPrice: item.eurPrice,
           isEuropeanPrice: isEuropean,
           promo_buy_qty: item.promo_buy_qty,
           promo_free_qty: item.promo_free_qty,

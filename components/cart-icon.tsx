@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, type MouseEvent } from "react"
 import { ShoppingBag, X, Plus, Minus, ArrowRight } from "lucide-react"
 import { useCart } from "@/context/cart-context"
 import Link from "next/link"
@@ -15,6 +15,7 @@ export function CartIcon() {
   const pathname = usePathname()
   
   const [isHovered, setIsHovered] = useState(false)
+  const [isMobileOpen, setIsMobileOpen] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -37,12 +38,32 @@ export function CartIcon() {
   }
 
   useEffect(() => {
+    if (!isMobileOpen) return
+
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsMobileOpen(false)
+      }
+    }
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown)
+    return () => document.removeEventListener("pointerdown", handleOutsidePointerDown)
+  }, [isMobileOpen])
+
+  useEffect(() => {
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current)
       }
     }
   }, [])
+
+  const handleCartClick = (event: MouseEvent<HTMLAnchorElement>) => {
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      event.preventDefault()
+      setIsMobileOpen((open) => !open)
+    }
+  }
 
   // Convert BGN to EUR
   const convertBgnToEur = (bgnPrice: number): number => {
@@ -71,10 +92,12 @@ export function CartIcon() {
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <Link href={cartUrl}>
+      <Link href={cartUrl} onClick={handleCartClick}>
         <button
+          type="button"
           className="relative flex items-center justify-center h-8 w-8 sm:h-9 sm:w-9 rounded-full text-neutral-400 hover:text-white hover:bg-white/[0.08] transition-colors"
           aria-label={ariaLabel}
+          aria-expanded={isMobileOpen || isHovered}
         >
           <ShoppingBag className="h-[18px] w-[18px]" />
           {itemCount > 0 && (
@@ -86,13 +109,13 @@ export function CartIcon() {
       </Link>
 
       {/* Cart Hover Preview - Desktop Only */}
-      {isHovered && itemCount > 0 && (
+      {(isHovered || isMobileOpen) && itemCount > 0 && (
         <div 
-          className="hidden md:block absolute top-full right-0 pt-3 z-50"
+          className="absolute top-full right-0 pt-3 z-50 block"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          <div className="bg-white rounded-2xl shadow-2xl border border-neutral-200/60 overflow-hidden w-[340px] animate-in fade-in-0 zoom-in-95 duration-150">
+          <div className="bg-white rounded-2xl shadow-2xl border border-neutral-200/60 overflow-hidden w-[calc(100vw-2rem)] max-w-[340px] animate-in fade-in-0 zoom-in-95 duration-150">
             {/* Header */}
             <div className="px-4 py-3 bg-neutral-50 border-b border-neutral-200/60">
               <div className="flex items-center justify-between">
@@ -239,7 +262,8 @@ export function CartIcon() {
                 href={cartUrl}
                 className="flex items-center justify-center gap-2 w-full py-2.5 bg-amber-500 hover:bg-amber-600 text-neutral-900 text-sm font-semibold rounded-xl transition-colors"
               >
-                {isEnglish ? "View Cart" : "Виж количката"}
+                <span className="md:hidden">{isEnglish ? "Continue" : "Продължи"}</span>
+                <span className="hidden md:inline">{isEnglish ? "View Cart" : "Виж количката"}</span>
                 <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
@@ -248,9 +272,9 @@ export function CartIcon() {
       )}
 
       {/* Empty cart hover state */}
-      {isHovered && itemCount === 0 && (
+      {(isHovered || isMobileOpen) && itemCount === 0 && (
         <div 
-          className="hidden md:block absolute top-full right-0 pt-3 z-50"
+          className="absolute top-full right-0 pt-3 z-50 block"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >

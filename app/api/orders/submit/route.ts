@@ -39,6 +39,7 @@ interface OrderSubmissionBody {
   customerName: string
   customerPhone: string
   customerEmail?: string
+  customerCity?: string
   deliveryAddress?: string
   items: CartItem[]
   totalAmount: number
@@ -79,6 +80,7 @@ export async function POST(req: NextRequest) {
       customerName,
       customerPhone,
       customerEmail: initialCustomerEmail,
+      customerCity,
       deliveryAddress,
       totalAmount,
       originalTotalPrice,
@@ -124,11 +126,9 @@ export async function POST(req: NextRequest) {
     } else if (deliveryOption === "home") {
       console.log("🏠 Setting home delivery option...")
       const homeDeliveryInfo = "Доставка до дома"
-      if (finalAddressInfo.trim()) {
-        finalAddressInfo = `${homeDeliveryInfo}\n\n${finalAddressInfo}`
-      } else {
-        finalAddressInfo = homeDeliveryInfo
-      }
+      const cityInfo = customerCity?.trim() ? `Населено място: ${customerCity.trim()}` : ""
+      const addressParts = [homeDeliveryInfo, cityInfo, finalAddressInfo.trim()].filter(Boolean)
+      finalAddressInfo = addressParts.join("\n\n")
     }
 
     console.log("📍 Final address info:", finalAddressInfo)

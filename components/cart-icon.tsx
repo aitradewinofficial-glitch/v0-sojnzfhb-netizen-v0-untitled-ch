@@ -111,11 +111,11 @@ export function CartIcon() {
       {/* Cart Hover Preview - Desktop Only */}
       {(isHovered || isMobileOpen) && itemCount > 0 && (
         <div 
-          className="absolute top-full right-0 pt-3 z-50 block"
+          className="fixed inset-x-2 top-[calc(var(--header-height,4rem)+0.75rem)] z-50 block pt-0 md:absolute md:inset-x-auto md:top-full md:right-0 md:pt-3"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          <div className="bg-white rounded-2xl shadow-2xl border border-neutral-200/60 overflow-hidden w-[calc(100vw-2rem)] max-w-[340px] animate-in fade-in-0 zoom-in-95 duration-150">
+          <div className="mx-auto max-h-[calc(100dvh-7rem)] w-full max-w-[340px] overflow-y-auto rounded-2xl border border-neutral-200/60 bg-white shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 md:mx-0">
             {/* Header */}
             <div className="px-4 py-3 bg-neutral-50 border-b border-neutral-200/60">
               <div className="flex items-center justify-between">
@@ -129,7 +129,7 @@ export function CartIcon() {
             </div>
 
             {/* Items List */}
-            <div className="max-h-[280px] overflow-y-auto">
+            <div className="max-h-[min(280px,calc(100dvh-19rem))] overflow-y-auto">
               {items.slice(0, 4).map((item) => {
                 const paidQuantity = item.quantity - (item.freeItems || 0)
                 const itemTotal = item.price * Math.max(0, paidQuantity)
@@ -274,11 +274,11 @@ export function CartIcon() {
       {/* Empty cart hover state */}
       {(isHovered || isMobileOpen) && itemCount === 0 && (
         <div 
-          className="absolute top-full right-0 pt-3 z-50 block"
+          className="fixed inset-x-2 top-[calc(var(--header-height,4rem)+0.75rem)] z-50 block pt-0 md:absolute md:inset-x-auto md:top-full md:right-0 md:pt-3"
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
         >
-          <div className="bg-white rounded-2xl shadow-2xl border border-neutral-200/60 overflow-hidden w-[280px] animate-in fade-in-0 zoom-in-95 duration-150">
+          <div className="mx-auto w-full max-w-[280px] overflow-hidden rounded-2xl border border-neutral-200/60 bg-white shadow-2xl animate-in fade-in-0 zoom-in-95 duration-150 md:mx-0">
             <div className="p-6 text-center">
               <div className="w-12 h-12 bg-neutral-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <ShoppingBag className="h-6 w-6 text-neutral-400" />

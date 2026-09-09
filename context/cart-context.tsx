@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect } from "react"
+import { createContext, useContext, useState, useEffect, useRef } from "react"
 import { isEuropeanCustomer } from "@/lib/client-auth"
 
 // Актуализиран CartItem тип, за да включва промоционални правила
@@ -94,10 +94,18 @@ type CartContextType = {
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
+const CART_STORAGE_KEY = "cart"
+const CART_EXPIRY_MS = 60 * 60 * 1000
+
+type StoredCart = {
+  items: CartItem[]
+  savedAt: number
+}
 
 export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   const [items, setItems] = useState<CartItem[]>([])
   const [isEuropean, setIsEuropean] = useState(false)
+  const hasLoadedCart = useRef(false)
 
   useEffect(() => {
     const checkCustomerType = () => {
@@ -109,21 +117,37 @@ export const CartProvider = ({ children }: { children: React.ReactNode }) => {
   }, [])
 
   useEffect(() => {
-    const savedCart = localStorage.getItem("cart")
+    const savedCart = localStorage.getItem(CART_STORAGE_KEY)
     if (savedCart) {
       try {
-        // При зареждане, преизчисляваме промоциите, за да сме сигурни, че са актуални
-        const loadedItems = JSON.parse(savedCart)
-        setItems(calculatePromotions(loadedItems))
+        const parsedCart = JSON.parse(savedCart) as StoredCart | CartItem[]
+        const storedItems = Array.isArray(parsedCart) ? parsedCart : parsedCart.items
+        const savedAt = Array.isArray(parsedCart) ? 0 : parsedCart.savedAt
+        const isExpired = !savedAt || Date.now() - savedAt >= CART_EXPIRY_MS
+
+        if (isExpired) {
+          localStorage.removeItem(CART_STORAGE_KEY)
+        } else {
+          setItems(calculatePromotions(storedItems))
+        }
       } catch (error) {
         console.error("Failed to parse cart from localStorage:", error)
-        localStorage.removeItem("cart")
+        localStorage.removeItem(CART_STORAGE_KEY)
       }
     }
+    hasLoadedCart.current = true
   }, [])
 
   useEffect(() => {
-    localStorage.setItem("cart", JSON.stringify(items))
+    if (!hasLoadedCart.current) return
+
+    if (items.length === 0) {
+      localStorage.removeItem(CART_STORAGE_KEY)
+      return
+    }
+
+    const storedCart: StoredCart = { items, savedAt: Date.now() }
+    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(storedCart))
   }, [items])
 
   const addItem = (item: CartItem) => {
